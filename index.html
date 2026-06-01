@@ -341,6 +341,7 @@ textarea.form-input{resize:vertical}
       <div class="sec-header">
         <div><div class="sec-title">Inventario</div><div class="sec-sub" id="inv-sub">0 productos</div></div>
         <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary" onclick="openModal('modal-factura-sri-compra')">🔍 Factura SRI</button>
           <button class="btn btn-secondary" onclick="openModal('modal-compra')">🛒 Registrar compra</button>
           <button class="btn btn-primary" onclick="openModal('modal-nuevo-producto')">+ Nuevo producto</button>
         </div>
@@ -481,9 +482,10 @@ textarea.form-input{resize:vertical}
 <!-- Nuevo Producto -->
 <div class="overlay hidden" id="modal-nuevo-producto">
   <div class="modal">
-    <div class="modal-head"><div class="modal-title">Nuevo producto</div><button class="close-btn" onclick="closeModal('modal-nuevo-producto')">×</button></div>
+    <div class="modal-head"><div class="modal-title">Nuevo producto</div><button class="close-btn" onclick="closeModal('modal-nuevo-producto');document.getElementById('prod-edit-id').value=''">×</button></div>
     <div class="modal-body">
       <div id="prod-error" class="alert alert-danger hidden"></div>
+      <input type="hidden" id="prod-edit-id">
       <div class="form-row">
         <div class="form-group"><label class="form-label">Código</label><input class="form-input" id="prod-codigo" placeholder="P011"></div>
         <div class="form-group"><label class="form-label">Nombre *</label><input class="form-input" id="prod-nombre"></div>
@@ -611,6 +613,96 @@ textarea.form-input{resize:vertical}
     <div class="modal-foot">
       <button class="btn btn-secondary" onclick="closeModal('modal-nuevo-gasto')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarGasto()">Registrar gasto</button>
+    </div>
+  </div>
+</div>
+
+<!-- Factura SRI Compra -->
+<div class="overlay hidden" id="modal-factura-sri-compra">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">🔍 Registrar factura del SRI</div>
+        <div style="font-size:12px;color:var(--t3);margin-top:2px">Facturas de compra a proveedores o facturas de venta propias</div>
+      </div>
+      <button class="close-btn" onclick="closeModal('modal-factura-sri-compra')">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- Tipo -->
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <div onclick="setTipoFacturaSRI('compra')" id="sri-tipo-compra" style="flex:1;text-align:center;padding:10px;border:1.5px solid var(--verde);border-radius:8px;cursor:pointer;background:var(--verde-l);font-size:12px;font-weight:600;color:var(--verde-t)">🛒 Factura de compra<br><small style="font-weight:400;opacity:.7">Proveedor → mi inventario</small></div>
+        <div onclick="setTipoFacturaSRI('venta')" id="sri-tipo-venta" style="flex:1;text-align:center;padding:10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--t2)">📄 Factura de venta<br><small style="font-weight:400;opacity:.7">Mis facturas emitidas al SRI</small></div>
+      </div>
+      <input type="hidden" id="sri-tipo" value="compra">
+
+      <!-- Clave de acceso -->
+      <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:14px">
+        <div style="flex:1">
+          <label class="form-label">Clave de acceso SRI (49 dígitos) *</label>
+          <input class="form-input" id="sri-clave" placeholder="2304202601110485079500110010010000000012345678914" maxlength="49" style="font-family:monospace;font-size:12px">
+        </div>
+        <button class="btn btn-primary" onclick="consultarSRI()">🔍 Consultar SRI</button>
+      </div>
+      <div id="sri-resultado" class="hidden">
+        <div class="alert alert-success" id="sri-ok-msg" style="margin-bottom:12px"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px" id="sri-datos-grid"></div>
+      </div>
+      <div id="sri-error-msg" class="alert alert-danger hidden"></div>
+
+      <!-- Registro manual -->
+      <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Datos de la factura</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">N° Factura</label>
+          <input class="form-input" id="sri-num-factura" placeholder="001-001-000000001">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha de emisión</label>
+          <input class="form-input" type="date" id="sri-fecha">
+        </div>
+      </div>
+      <div class="form-row" id="sri-proveedor-row">
+        <div class="form-group">
+          <label class="form-label">Proveedor / Emisor</label>
+          <input class="form-input" id="sri-proveedor" placeholder="Nombre del proveedor">
+        </div>
+        <div class="form-group">
+          <label class="form-label">RUC del proveedor</label>
+          <input class="form-input" id="sri-ruc-prov" placeholder="1234567890001">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Total de la factura $</label>
+        <input class="form-input" type="number" id="sri-total" min="0" step="0.01" placeholder="0.00" style="max-width:200px">
+      </div>
+
+      <!-- Productos a ingresar al inventario (solo compra) -->
+      <div id="sri-productos-section">
+        <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;margin-top:4px">Productos a ingresar al inventario</div>
+        <div id="sri-prod-list" style="margin-bottom:10px"></div>
+        <div style="background:var(--hover);border-radius:8px;padding:10px;display:grid;grid-template-columns:2fr 0.7fr 0.8fr auto;gap:8px;align-items:end">
+          <div>
+            <div style="font-size:10px;color:var(--t3);margin-bottom:3px">Producto del inventario</div>
+            <select class="form-select" id="sri-prod-sel" style="font-size:12px">
+              <option value="">Seleccionar existente o nuevo →</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--t3);margin-bottom:3px">Cantidad</div>
+            <input class="form-input" id="sri-prod-cant" type="number" min="0.01" step="0.01" value="1" style="font-size:12px">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--t3);margin-bottom:3px">P. costo $</div>
+            <input class="form-input" id="sri-prod-precio" type="number" min="0" step="0.01" placeholder="0.00" style="font-size:12px">
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="agregarProdSRI()">+ Add</button>
+        </div>
+        <div style="font-size:11px;color:var(--t3);margin-top:6px">Si el producto no existe en el inventario, créalo primero desde "+ Nuevo producto"</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('modal-factura-sri-compra')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarFacturaSRI()">💾 Registrar factura</button>
     </div>
   </div>
 </div>
@@ -850,36 +942,286 @@ function renderListaOrdenes(ords) {
   }</tbody></table></div>`;
 }
 
+let ordenActual = null;
+let editItems = [];
+
 async function abrirDetalleOrden(id) {
   const r = await api('GET', `/api/ordenes/${id}`);
   if (!r) return;
+  ordenActual = r;
+  editItems = (r.items||[]).map(i=>({...i}));
+
   document.getElementById('det-titulo').innerHTML = `${r.numero} <span class="plate" style="font-size:11px">${r.placa}</span>`;
   document.getElementById('det-sub').textContent = `${r.cliente_nombre} · ${r.marca} ${r.modelo} ${r.anio}`;
   const steps = ['ingresado','en_proceso','en_pintura','ensamblaje','finalizado','entregado'];
   const doneIdx = steps.indexOf(r.estado);
+
   document.getElementById('det-body').innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
-      ${[['Servicio',r.tipo_servicio||'—'],['Total','$'+parseFloat(r.total||0).toFixed(2)],['Días',parseInt(r.dias_en_taller)||0+'d'],['Kilometraje',r.kilometraje_ingreso?parseInt(r.kilometraje_ingreso).toLocaleString()+' km':'—'],['Estado',COLS.find(c=>c.key===r.estado)?.label||r.estado],['Asesor',r.asesor_nombre||'—']].map(([k,v])=>`
-      <div style="background:var(--hover);border-radius:8px;padding:8px 10px">
-        <div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px">${k}</div>
-        <div style="font-size:12px;font-weight:600">${v}</div>
-      </div>`).join('')}
+    <!-- Progreso -->
+    <div style="display:flex;gap:3px;margin-bottom:6px">
+      ${steps.map((s,i)=>`<div title="${COLS.find(c=>c.key===s)?.label||s}" style="flex:1;height:5px;border-radius:2px;background:${i<=doneIdx?'var(--verde)':'var(--border)'}"></div>`).join('')}
     </div>
-    ${r.descripcion?`<div style="font-size:12px;color:var(--t2);margin-bottom:12px;padding:9px 11px;background:var(--hover);border-radius:8px;line-height:1.5">${r.descripcion}</div>`:''}
-    <div style="display:flex;gap:3px;margin-bottom:14px">
-      ${steps.map((s,i)=>`<div style="flex:1;height:4px;border-radius:2px;background:${i<=doneIdx?'var(--verde)':'var(--border)'}"></div>`).join('')}
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-bottom:14px">
+      ${steps.map(s=>`<span>${COLS.find(c=>c.key===s)?.label||s}</span>`).join('')}
     </div>
-    <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Insumos</div>
-    <div style="background:var(--hover);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--t3)">
-      Usa "Descontar insumo" para registrar materiales usados en esta orden.
+
+    <!-- Cambiar estado -->
+    <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Estado de la orden</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">
+      ${steps.filter(s=>s!=='entregado'||r.estado==='entregado').map(s=>`
+        <button onclick="cambiarEstadoOrden('${r.id}','${s}')" style="padding:6px 12px;border-radius:20px;border:1.5px solid ${r.estado===s?'var(--verde)':'var(--border)'};background:${r.estado===s?'var(--verde-l)':'#fff'};color:${r.estado===s?'var(--verde-t)':'var(--t2)'};font-size:12px;font-weight:${r.estado===s?600:400};cursor:pointer">
+          ${COLS.find(c=>c.key===s)?.label||s}
+        </button>`).join('')}
+    </div>
+
+    <!-- Datos editables -->
+    <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Datos del trabajo</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div>
+        <div style="font-size:11px;color:var(--t3);margin-bottom:4px">Descripción *</div>
+        <textarea id="edit-desc" class="form-input" rows="2" style="font-size:12px">${r.descripcion||''}</textarea>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--t3);margin-bottom:4px">Notas para el cliente</div>
+        <textarea id="edit-notas" class="form-input" rows="2" style="font-size:12px">${r.notas_cliente||''}</textarea>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--t3);margin-bottom:4px">Kilometraje de ingreso</div>
+        <input id="edit-km" class="form-input" type="number" style="font-size:12px" value="${r.kilometraje_ingreso||''}">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--t3);margin-bottom:4px">Fecha prometida</div>
+        <input id="edit-fecha" class="form-input" type="date" style="font-size:12px" value="${r.fecha_prometida?r.fecha_prometida.split('T')[0]:''}">
+      </div>
+    </div>
+
+    <!-- Descuento -->
+    <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Descuento en la orden</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;background:var(--hover);border-radius:8px;padding:10px 12px">
+      <select id="edit-desc-tipo" class="form-select" style="width:140px;font-size:12px" onchange="recalcEditTotal()">
+        <option value="ninguno">Sin descuento</option>
+        <option value="porcentaje">Por porcentaje (%)</option>
+        <option value="valor">Por valor ($)</option>
+      </select>
+      <input id="edit-desc-valor" class="form-input" type="number" min="0" step="0.01" placeholder="0" value="${r.descuento||0}" style="width:100px;font-size:12px" oninput="recalcEditTotal()">
+      <div style="font-size:12px;color:var(--t3)" id="edit-desc-info">Ingresa el tipo y valor del descuento</div>
+    </div>
+
+    <!-- Ítems -->
+    <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Ítems del trabajo</div>
+    <div id="edit-items-list"></div>
+    <div style="background:var(--hover);border-radius:8px;padding:10px;display:grid;grid-template-columns:0.9fr 1.6fr 0.5fr 0.8fr auto;gap:6px;align-items:end;margin-bottom:8px">
+      <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Tipo</div>
+        <select class="form-select" id="edit-item-tipo" style="font-size:12px;padding:7px 8px">
+          <option value="mano_obra">Mano obra</option><option value="material">Material</option>
+          <option value="repuesto">Repuesto</option><option value="externo">Externo</option>
+        </select></div>
+      <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Descripción</div>
+        <input class="form-input" id="edit-item-desc" style="font-size:12px;padding:7px 8px" placeholder="Ej: Latonería puerta"></div>
+      <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Cant.</div>
+        <input class="form-input" id="edit-item-cant" type="number" min="0.1" step="0.1" value="1" style="font-size:12px;padding:7px 8px"></div>
+      <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">P. unitario $</div>
+        <input class="form-input" id="edit-item-precio" type="number" min="0" step="0.01" placeholder="0.00" style="font-size:12px;padding:7px 8px"></div>
+      <button class="btn btn-primary btn-sm" onclick="agregarEditItem()">+ Add</button>
+    </div>
+    <div id="edit-total" style="text-align:right;font-size:12px;padding:6px 0;margin-bottom:14px"></div>
+
+    <!-- Insumos del inventario -->
+    <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Insumos consumidos del inventario</div>
+    <div style="background:var(--hover);border-radius:8px;padding:12px;margin-bottom:4px" id="insumos-section">
+      <div style="display:grid;grid-template-columns:2fr 0.8fr auto;gap:8px;align-items:end;margin-bottom:10px">
+        <div>
+          <div style="font-size:10px;color:var(--t3);margin-bottom:3px">Insumo / Producto</div>
+          <select class="form-select" id="insumo-prod" style="font-size:12px">
+            <option value="">Seleccionar...</option>
+            ${todosProductos.map(p=>`<option value="${p.id}" data-stock="${p.stock_actual}" data-unidad="${p.unidad}">${p.nombre} — Stock: ${parseFloat(p.stock_actual).toFixed(2)} ${p.unidad}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--t3);margin-bottom:3px">Cantidad</div>
+          <input class="form-input" id="insumo-cant" type="number" min="0.01" step="0.01" value="1" style="font-size:12px">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="descontarInsumoOrden('${r.id}','${r.numero}')">Descontar</button>
+      </div>
+      <div id="insumo-aviso" style="font-size:11px;color:var(--t3)">El insumo se descuenta del inventario y queda registrado en el kardex.</div>
     </div>`;
+
+  renderEditItems();
+
   const next = TRANS[r.estado];
   const nextLabel = COLS.find(c=>c.key===next)?.label;
   document.getElementById('det-foot').innerHTML = `
-    ${!['entregado','cancelado'].includes(r.estado)&&next?`<button class="btn btn-primary" onclick="avanzarOrden('${r.id}','${next}')">Avanzar → ${nextLabel}</button>`:''}
-    ${r.estado==='finalizado'?`<button class="btn btn-secondary" onclick="showPage('facturacion');closeModal('modal-detalle-orden')">Ir a facturar</button>`:''}
-    <button class="btn btn-secondary" onclick="closeModal('modal-detalle-orden')">Cerrar</button>`;
+    <button class="btn btn-sm" style="background:var(--red-bg);color:var(--red)" onclick="eliminarOrden('${r.id}','${r.numero}')">🗑 Eliminar orden</button>
+    <button class="btn btn-secondary" onclick="closeModal('modal-detalle-orden')">Cerrar</button>
+    <button class="btn btn-secondary" style="background:var(--warn-bg);color:var(--warn)" onclick="guardarEdicionOrden('${r.id}')">💾 Guardar cambios</button>
+    ${r.estado==='finalizado'?`<button class="btn btn-primary" onclick="showPage('facturacion');closeModal('modal-detalle-orden')">Ir a facturar</button>`:''}`;
   openModal('modal-detalle-orden');
+}
+  openModal('modal-detalle-orden');
+}
+
+function renderEditItems() {
+  const TIPO_L = {mano_obra:'Mano obra',material:'Material',repuesto:'Repuesto',externo:'Externo'};
+  const total = editItems.reduce((a,i)=>a+(parseFloat(i.cantidad)*parseFloat(i.precio_unit||i.precio_unitario||0)),0);
+  document.getElementById('edit-items-list').innerHTML = editItems.length===0
+    ? '<div style="font-size:12px;color:var(--t3);padding:8px 0;margin-bottom:8px">Sin ítems aún — agrega trabajos abajo</div>'
+    : editItems.map((item,idx)=>`
+      <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--hover);border-radius:6px;margin-bottom:6px;font-size:12px">
+        <span class="badge b-blue" style="font-size:9px;white-space:nowrap">${TIPO_L[item.tipo]||item.tipo}</span>
+        <input value="${item.descripcion}" oninput="editItems[${idx}].descripcion=this.value;recalcEditTotal()" style="flex:1;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px;font-family:inherit">
+        <input type="number" value="${parseFloat(item.cantidad).toFixed(1)}" min="0.1" step="0.1" oninput="editItems[${idx}].cantidad=parseFloat(this.value)||1;recalcEditTotal()" style="width:55px;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px;font-family:inherit">
+        <span style="color:var(--t3)">×</span>
+        <input type="number" value="${parseFloat(item.precio_unit||item.precio_unitario||0).toFixed(2)}" min="0" step="0.01" oninput="editItems[${idx}].precio_unit=parseFloat(this.value)||0;recalcEditTotal()" style="width:70px;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px;font-family:inherit">
+        <span style="font-weight:600;min-width:55px;text-align:right">$${(parseFloat(item.cantidad)*(parseFloat(item.precio_unit||item.precio_unitario||0))).toFixed(2)}</span>
+        <button onclick="editItems.splice(${idx},1);renderEditItems()" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:16px;padding:0;line-height:1">×</button>
+      </div>`).join('');
+  recalcEditTotal();
+}
+
+function recalcEditTotal() {
+  const subtotal = editItems.reduce((a,i)=>a+(parseFloat(i.cantidad)*(parseFloat(i.precio_unit||i.precio_unitario||0))),0);
+  const tipoDesc = document.getElementById('edit-desc-tipo')?.value || 'ninguno';
+  const valDesc  = parseFloat(document.getElementById('edit-desc-valor')?.value)||0;
+  let descAmt = 0;
+  if (tipoDesc==='porcentaje') descAmt = subtotal*(valDesc/100);
+  else if (tipoDesc==='valor')  descAmt = valDesc;
+  descAmt = Math.min(descAmt, subtotal);
+  const base = subtotal - descAmt;
+  const iva  = base * 0.15;
+  const total = base + iva;
+  const infoEl = document.getElementById('edit-desc-info');
+  if (infoEl) infoEl.innerHTML = descAmt>0 ? `<span style="color:var(--ok)">Descuento: -$${descAmt.toFixed(2)}</span>` : 'Ingresa el tipo y valor del descuento';
+  const el = document.getElementById('edit-total');
+  if(el) el.innerHTML = subtotal>0?`
+    <span style="color:var(--t3)">Subtotal: </span><strong>$${subtotal.toFixed(2)}</strong>
+    ${descAmt>0?`<span style="color:var(--ok);margin-left:10px">Descuento: -$${descAmt.toFixed(2)}</span>`:''}
+    <span style="color:var(--t3);margin-left:10px">IVA 15%: </span><strong>$${iva.toFixed(2)}</strong>
+    <span style="color:var(--verde);font-weight:700;font-size:14px;margin-left:10px">Total: $${total.toFixed(2)}</span>`:'';
+}
+
+async function cambiarEstadoOrden(id, nuevoEstado) {
+  if (ordenActual?.estado === nuevoEstado) return;
+  if (!confirm(`¿Cambiar estado a "${COLS.find(c=>c.key===nuevoEstado)?.label||nuevoEstado}"?`)) return;
+  const r = await api('PATCH', `/api/ordenes/${id}/estado`, {estado: nuevoEstado});
+  if (r?.estado || r?.mensaje) {
+    closeModal('modal-detalle-orden');
+    loadOrdenes();
+  } else {
+    alert(r?.error || 'No se puede hacer ese cambio de estado');
+  }
+}
+
+async function eliminarOrden(id, numero) {
+  if (!confirm(`¿Eliminar la orden ${numero}? Esta acción no se puede deshacer.`)) return;
+  const r = await api('DELETE', `/api/ordenes/${id}`);
+  if (r?.eliminado) {
+    closeModal('modal-detalle-orden');
+    loadOrdenes();
+    alert('✓ Orden eliminada');
+  } else {
+    alert(r?.error || 'Error al eliminar la orden');
+  }
+}
+
+async function descontarInsumoOrden(ordenId, ordenNumero) {
+  const sel   = document.getElementById('insumo-prod');
+  const cant  = parseFloat(document.getElementById('insumo-cant').value)||0;
+  const aviso = document.getElementById('insumo-aviso');
+  if (!sel.value || !cant) { aviso.innerHTML='<span style="color:var(--red)">Selecciona un producto e ingresa la cantidad</span>'; return; }
+  const opt   = sel.options[sel.selectedIndex];
+  const stock = parseFloat(opt.dataset.stock||0);
+  const unidad = opt.dataset.unidad||'';
+  if (cant > stock) { aviso.innerHTML=`<span style="color:var(--red)">⚠ Stock insuficiente. Disponible: ${stock.toFixed(2)} ${unidad}</span>`; return; }
+  const r = await api('POST', `/api/inventario/${sel.value}/movimiento`, {
+    tipo:'salida', cantidad:cant,
+    referencia_tipo:'orden', referencia_id:ordenId,
+    notas:`Orden ${ordenNumero}`
+  });
+  if (r?.stock_nuevo !== undefined) {
+    aviso.innerHTML=`<span style="color:var(--ok)">✓ Descontado correctamente. Stock restante: ${parseFloat(r.stock_nuevo).toFixed(2)} ${unidad}</span>`;
+    // Actualizar stock en selector
+    opt.dataset.stock = r.stock_nuevo;
+    opt.text = opt.text.replace(/Stock: [\d.]+/, `Stock: ${parseFloat(r.stock_nuevo).toFixed(2)}`);
+    document.getElementById('insumo-cant').value = 1;
+    todosProductos = todosProductos.map(p => p.id===sel.value ? {...p, stock_actual:r.stock_nuevo} : p);
+  } else {
+    aviso.innerHTML=`<span style="color:var(--red)">${r?.error||'Error al descontar'}</span>`;
+  }
+}
+
+function agregarEditItem() {
+  const tipo  = document.getElementById('edit-item-tipo').value;
+  const desc  = document.getElementById('edit-item-desc').value;
+  const cant  = parseFloat(document.getElementById('edit-item-cant').value)||1;
+  const precio = parseFloat(document.getElementById('edit-item-precio').value)||0;
+  if (!desc||!precio) { alert('Ingresa descripción y precio'); return; }
+  editItems.push({tipo, descripcion:desc, cantidad:cant, precio_unit:precio});
+  document.getElementById('edit-item-desc').value='';
+  document.getElementById('edit-item-precio').value='';
+  renderEditItems();
+}
+
+async function guardarEdicionOrden(id) {
+  const desc  = document.getElementById('edit-desc').value;
+  const notas = document.getElementById('edit-notas').value;
+  const km    = document.getElementById('edit-km').value;
+  const fecha = document.getElementById('edit-fecha').value;
+  const tipoDesc = document.getElementById('edit-desc-tipo')?.value || 'ninguno';
+  const valDesc  = parseFloat(document.getElementById('edit-desc-valor')?.value)||0;
+  const items = editItems.map(i=>({
+    tipo: i.tipo, descripcion: i.descripcion,
+    cantidad: parseFloat(i.cantidad),
+    precio_unit: parseFloat(i.precio_unit||i.precio_unitario||0),
+    unidad: i.unidad||'unidad'
+  }));
+  const r = await api('PUT', `/api/ordenes/${id}`, {
+    descripcion:desc, notas_cliente:notas,
+    kilometraje_ingreso:km||undefined,
+    fecha_prometida:fecha||undefined,
+    descuento_tipo:tipoDesc, descuento_valor:valDesc,
+    items
+  });
+  if (r?.id||r?.numero) {
+    closeModal('modal-detalle-orden');
+    loadOrdenes();
+    alert('✓ Orden actualizada correctamente');
+  } else {
+    alert(r?.error||'Error al guardar los cambios');
+  }
+}
+
+function abrirDescontarInsumo(ordenId, ordenNumero) {
+  // Reusar modal de movimiento adaptado para orden
+  if (!todosProductos.length) { alert('Carga el inventario primero'); return; }
+  currentMovProd = null;
+  document.getElementById('mov-prod-id').value = '';
+  document.getElementById('mov-info').innerHTML = `Descontar insumo de orden <strong>${ordenNumero}</strong>`;
+  document.getElementById('mov-cant').value = 1;
+  document.getElementById('mov-precio').value = '';
+  document.getElementById('mov-nota').value = `Orden ${ordenNumero}`;
+  document.getElementById('mov-aviso').classList.add('hidden');
+  selMovTipo('salida');
+  // Guardar referencia a la orden
+  document.getElementById('mov-prod-id').dataset.ordenId = ordenId;
+  document.getElementById('mov-prod-id').dataset.ordenNumero = ordenNumero;
+
+  // Poblar selector de productos
+  const opts = todosProductos.map(p=>`<option value="${p.id}" data-stock="${p.stock_actual}" data-unidad="${p.unidad}">${p.nombre} — Stock: ${parseFloat(p.stock_actual).toFixed(2)} ${p.unidad}</option>`).join('');
+  // Reemplazar el select de movimiento con productos disponibles
+  const sel = document.createElement('select');
+  sel.className = 'form-select';
+  sel.id = 'mov-producto-sel';
+  sel.innerHTML = '<option value="">Seleccionar insumo...</option>' + opts;
+  sel.onchange = function() {
+    const opt = this.options[this.selectedIndex];
+    document.getElementById('mov-prod-id').value = this.value;
+    currentMovProd = {id:this.value, stock:parseFloat(opt.dataset.stock||0), unidad:opt.dataset.unidad||''};
+  };
+  const infoDiv = document.getElementById('mov-info');
+  infoDiv.innerHTML = `Descontar insumo de orden <strong>${ordenNumero}</strong>`;
+  infoDiv.appendChild(document.createElement('br'));
+  infoDiv.appendChild(sel);
+  openModal('modal-movimiento');
 }
 
 async function avanzarOrden(id, estado) {
@@ -1148,14 +1490,45 @@ function renderTablaInventario(list) {
   document.getElementById('inv-tabla').innerHTML = `<table><thead><tr><th>Código</th><th>Producto</th><th>Categoría</th><th>Stock actual</th><th>Mín.</th><th>P. costo</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${
     list.map(p=>`<tr>
       <td><span style="font-family:monospace;font-size:11px">${p.codigo||'—'}</span></td>
-      <td><div style="font-weight:600">${p.nombre}</div></td>
+      <td><div style="font-weight:600">${p.nombre}</div>${p.descripcion?`<div style="font-size:11px;color:var(--t3)">${p.descripcion}</div>`:''}</td>
       <td><span class="badge ${CAT_B[p.categoria]||'b-gray'}" style="text-transform:capitalize">${p.categoria}</span></td>
       <td style="font-weight:600">${parseFloat(p.stock_actual).toFixed(2)} <span style="font-size:11px;color:var(--t3);font-weight:400">${p.unidad}</span></td>
       <td style="font-size:12px;color:var(--t3)">${parseFloat(p.stock_minimo).toFixed(2)}</td>
       <td style="font-size:12px">$${parseFloat(p.precio_costo||0).toFixed(2)}</td>
       <td>${p.alerta_stock?'<span class="badge b-red">⚠ Bajo</span>':'<span class="badge b-green">OK</span>'}</td>
-      <td><button class="btn btn-secondary btn-sm" onclick="abrirMovimiento('${p.id}','${p.nombre}',${p.stock_actual},'${p.unidad}')">± Movimiento</button></td></tr>`).join('')
+      <td>
+        <div style="display:flex;gap:5px">
+          <button class="btn btn-secondary btn-sm" onclick="abrirMovimiento('${p.id}','${p.nombre}',${p.stock_actual},'${p.unidad}')">± Stock</button>
+          <button class="btn btn-secondary btn-sm" onclick="editarProducto('${p.id}')">✏️</button>
+          ${parseFloat(p.stock_actual)===0?`<button class="btn btn-sm" style="background:var(--red-bg);color:var(--red)" onclick="eliminarProducto('${p.id}','${p.nombre}')">🗑</button>`:`<button class="btn btn-sm" style="background:var(--hover);color:var(--t3);cursor:not-allowed" title="Solo se puede eliminar con stock 0">🗑</button>`}
+        </div>
+      </td></tr>`).join('')
   }</tbody></table>`;
+}
+
+function editarProducto(id) {
+  const p = todosProductos.find(x=>x.id===id);
+  if (!p) return;
+  document.getElementById('prod-codigo').value  = p.codigo||'';
+  document.getElementById('prod-nombre').value  = p.nombre||'';
+  document.getElementById('prod-cat').value     = p.categoria||'otro';
+  document.getElementById('prod-unidad').value  = p.unidad||'unidad';
+  document.getElementById('prod-stock').value   = p.stock_actual||0;
+  document.getElementById('prod-stock-min').value = p.stock_minimo||0;
+  document.getElementById('prod-costo').value   = p.precio_costo||0;
+  document.getElementById('prod-venta').value   = p.precio_venta||0;
+  document.getElementById('prod-edit-id').value = id;
+  document.querySelector('#modal-nuevo-producto .modal-title').textContent = 'Editar producto';
+  openModal('modal-nuevo-producto');
+}
+
+async function eliminarProducto(id, nombre) {
+  const p = todosProductos.find(x=>x.id===id);
+  if (parseFloat(p?.stock_actual||0) !== 0) { alert('Solo se pueden eliminar productos con stock 0'); return; }
+  if (!confirm(`¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`)) return;
+  const r = await api('DELETE', `/api/inventario/${id}`);
+  if (r?.eliminado) { loadInventario(); }
+  else alert(r?.error || 'Error al eliminar producto');
 }
 
 function abrirMovimiento(id, nombre, stock, unidad) {
@@ -1206,10 +1579,11 @@ async function guardarMovimiento() {
 
 async function guardarProducto() {
   const nombre = document.getElementById('prod-nombre').value;
+  const editId = document.getElementById('prod-edit-id').value;
   const err = document.getElementById('prod-error');
   if (!nombre) { err.textContent='Nombre es obligatorio'; err.classList.remove('hidden'); return; }
   err.classList.add('hidden');
-  const r = await api('POST', '/api/inventario', {
+  const body = {
     codigo:document.getElementById('prod-codigo').value,
     nombre, categoria:document.getElementById('prod-cat').value,
     unidad:document.getElementById('prod-unidad').value,
@@ -1217,9 +1591,16 @@ async function guardarProducto() {
     stock_minimo:parseFloat(document.getElementById('prod-stock-min').value)||0,
     precio_costo:parseFloat(document.getElementById('prod-costo').value)||0,
     precio_venta:parseFloat(document.getElementById('prod-venta').value)||0
-  });
-  if (r?.id) { closeModal('modal-nuevo-producto'); loadInventario(); }
-  else { err.textContent=r?.error||'Error al guardar'; err.classList.remove('hidden'); }
+  };
+  const r = editId
+    ? await api('PUT', `/api/inventario/${editId}`, body)
+    : await api('POST', '/api/inventario', body);
+  if (r?.id) {
+    closeModal('modal-nuevo-producto');
+    document.getElementById('prod-edit-id').value='';
+    document.querySelector('#modal-nuevo-producto .modal-title').textContent='Nuevo producto';
+    loadInventario();
+  } else { err.textContent=r?.error||'Error al guardar'; err.classList.remove('hidden'); }
 }
 
 function agregarItemCompra() {
@@ -1440,9 +1821,146 @@ async function guardarGasto() {
   else alert(r?.error||'Error al guardar');
 }
 
+// ═══════════ FACTURA SRI ═══════════
+let sriProdItems = [];
+
+function setTipoFacturaSRI(tipo) {
+  document.getElementById('sri-tipo').value = tipo;
+  ['compra','venta'].forEach(t => {
+    const el = document.getElementById(`sri-tipo-${t}`);
+    const active = t === tipo;
+    el.style.borderColor = active ? 'var(--verde)' : 'var(--border)';
+    el.style.background  = active ? 'var(--verde-l)' : '';
+    el.style.color       = active ? 'var(--verde-t)' : 'var(--t2)';
+  });
+  document.getElementById('sri-productos-section').style.display = tipo==='compra' ? 'block' : 'none';
+}
+
+async function consultarSRI() {
+  const clave = document.getElementById('sri-clave').value.trim();
+  const errEl = document.getElementById('sri-error-msg');
+  const resEl = document.getElementById('sri-resultado');
+  errEl.classList.add('hidden');
+  resEl.classList.add('hidden');
+  if (clave.length !== 49) { errEl.textContent='La clave de acceso debe tener exactamente 49 dígitos'; errEl.classList.remove('hidden'); return; }
+
+  // Consultar al backend que consulta al SRI
+  const r = await api('GET', `/api/sri/consultar?clave=${clave}`);
+  if (r?.autorizado) {
+    document.getElementById('sri-ok-msg').textContent = `✓ Comprobante autorizado el ${r.fecha_autorizacion||'—'}`;
+    document.getElementById('sri-datos-grid').innerHTML = [
+      ['Tipo', r.tipo_comprobante||'—'],
+      ['N° Factura', r.numero_factura||'—'],
+      ['Emisor', r.razon_social_emisor||'—'],
+      ['RUC Emisor', r.ruc_emisor||'—'],
+      ['Fecha emisión', r.fecha_emision||'—'],
+      ['Total', r.total ? '$'+r.total : '—'],
+    ].map(([k,v])=>`<div style="background:var(--hover);border-radius:8px;padding:8px 10px">
+      <div style="font-size:10px;color:var(--t3);margin-bottom:2px">${k}</div>
+      <div style="font-size:12px;font-weight:600">${v}</div></div>`).join('');
+    // Auto-llenar campos
+    if (r.numero_factura) document.getElementById('sri-num-factura').value = r.numero_factura;
+    if (r.fecha_emision) document.getElementById('sri-fecha').value = r.fecha_emision;
+    if (r.razon_social_emisor) document.getElementById('sri-proveedor').value = r.razon_social_emisor;
+    if (r.ruc_emisor) document.getElementById('sri-ruc-prov').value = r.ruc_emisor;
+    if (r.total) document.getElementById('sri-total').value = r.total;
+    resEl.classList.remove('hidden');
+  } else if (r?.error) {
+    // Si el SRI no responde, mostrar campos para llenar manual
+    errEl.textContent = '⚠ No se pudo consultar el SRI automáticamente. Puedes ingresar los datos manualmente abajo.';
+    errEl.classList.remove('hidden');
+  } else {
+    errEl.textContent = 'No se encontró el comprobante o no está autorizado';
+    errEl.classList.remove('hidden');
+  }
+}
+
+function agregarProdSRI() {
+  const sel    = document.getElementById('sri-prod-sel');
+  const cant   = parseFloat(document.getElementById('sri-prod-cant').value)||0;
+  const precio = parseFloat(document.getElementById('sri-prod-precio').value)||0;
+  if (!sel.value||!cant||!precio) { alert('Selecciona producto, cantidad y precio'); return; }
+  const prod = todosProductos.find(p=>p.id===sel.value);
+  sriProdItems.push({producto_id:sel.value, nombre:prod?.nombre||'', unidad:prod?.unidad||'', cantidad:cant, precio_unit:precio});
+  renderSRIProdList();
+  sel.value=''; document.getElementById('sri-prod-cant').value=1; document.getElementById('sri-prod-precio').value='';
+}
+
+function renderSRIProdList() {
+  const total = sriProdItems.reduce((a,i)=>a+i.cantidad*i.precio_unit,0);
+  document.getElementById('sri-prod-list').innerHTML = sriProdItems.length===0?'':`
+    ${sriProdItems.map((item,idx)=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--hover);border-radius:6px;margin-bottom:6px;font-size:12px">
+      <span style="flex:1;font-weight:500">${item.nombre}</span>
+      <span style="color:var(--t3)">${item.cantidad} ${item.unidad} × $${item.precio_unit.toFixed(2)}</span>
+      <span style="font-weight:600;color:var(--verde)">$${(item.cantidad*item.precio_unit).toFixed(2)}</span>
+      <button onclick="sriProdItems.splice(${idx},1);renderSRIProdList()" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:16px">×</button>
+    </div>`).join('')}
+    <div style="text-align:right;font-weight:700;font-size:13px;color:var(--verde)">Total productos: $${total.toFixed(2)}</div>`;
+}
+
+async function guardarFacturaSRI() {
+  const tipo      = document.getElementById('sri-tipo').value;
+  const clave     = document.getElementById('sri-clave').value.trim();
+  const numFact   = document.getElementById('sri-num-factura').value;
+  const fecha     = document.getElementById('sri-fecha').value;
+  const proveedor = document.getElementById('sri-proveedor').value;
+  const rucProv   = document.getElementById('sri-ruc-prov').value;
+  const total     = parseFloat(document.getElementById('sri-total').value)||0;
+
+  if (!numFact||!fecha) { alert('N° de factura y fecha son obligatorios'); return; }
+
+  if (tipo === 'compra') {
+    if (!sriProdItems.length) { alert('Agrega al menos un producto al inventario'); return; }
+    // Registrar entradas al inventario
+    for (const item of sriProdItems) {
+      await api('POST', `/api/inventario/${item.producto_id}/movimiento`, {
+        tipo:'entrada', cantidad:item.cantidad, precio_unit:item.precio_unit,
+        notas:`Factura compra ${numFact} - ${proveedor}`
+      });
+    }
+    // Registrar como gasto en finanzas
+    if (total > 0) {
+      await api('POST', '/api/finanzas/gastos', {
+        tipo:'variable', categoria:'materiales',
+        descripcion:`Factura ${numFact} - ${proveedor||'Proveedor'}`,
+        monto:total, fecha
+      });
+    }
+    closeModal('modal-factura-sri-compra');
+    sriProdItems = [];
+    renderSRIProdList();
+    loadInventario();
+    alert(`✓ Factura registrada. ${sriProdItems.length||'Los'} productos ingresaron al inventario${total>0?' y se registró el gasto en Finanzas':''}.`);
+  } else {
+    // Factura de venta — solo registrar referencia
+    alert(`✓ Factura de venta ${numFact} registrada como referencia.\nTotal: $${total.toFixed(2)}\nEmisor: ${proveedor||'—'}`);
+    closeModal('modal-factura-sri-compra');
+  }
+
+  // Limpiar formulario
+  document.getElementById('sri-clave').value='';
+  document.getElementById('sri-num-factura').value='';
+  document.getElementById('sri-fecha').value='';
+  document.getElementById('sri-proveedor').value='';
+  document.getElementById('sri-ruc-prov').value='';
+  document.getElementById('sri-total').value='';
+  document.getElementById('sri-resultado').classList.add('hidden');
+  document.getElementById('sri-error-msg').classList.add('hidden');
+}
+
+// Poblar selector de productos en modal SRI al abrir inventario
+const _origLoadInv = loadInventario;
+async function loadInventario() {
+  await _origLoadInv();
+  const opts = todosProductos.map(p=>`<option value="${p.id}">${p.nombre} (${p.unidad})</option>`).join('');
+  const sel = document.getElementById('sri-prod-sel');
+  if (sel) sel.innerHTML = '<option value="">Seleccionar producto...</option>' + opts;
+}
+
 // Iniciar cotizador al cargar
 window.addEventListener('load', () => {
   if (TOKEN) calcCotizador();
+  document.getElementById('sri-fecha').value = new Date().toISOString().split('T')[0];
 });
 </script>
 </body>
