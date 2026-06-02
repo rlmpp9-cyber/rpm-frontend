@@ -1,2 +1,14 @@
-const http=require('http'),fs=require('fs'),https=require('https'),path=require('path'),PORT=process.env.PORT||3000;
-https.get('https://raw.githubusercontent.com/rlmpp9-cyber/rpm-frontend/main/index.html',r=>{let d='';r.on('data',c=>d+=c);r.on('end',()=>{if(d.length>10000)fs.writeFileSync(path.join(__dirname,'index.html'),d);http.createServer((q,s)=>{s.setHeader('Content-Type','text/html');fs.readFile(path.join(__dirname,'index.html'),(e,x)=>{s.writeHead(e?500:200);s.end(e?'Error':x)});}).listen(PORT,()=>console.log('OK',PORT))})}).on('error',e=>console.error(e));
+const http=require('http'),https=require('https'),PORT=process.env.PORT||3000;
+const URL='https://raw.githubusercontent.com/rlmpp9-cyber/rpm-frontend/main/index.html';
+http.createServer((req,res)=>{
+  https.get(URL,r=>{
+    let d='';
+    r.on('data',c=>d+=c);
+    r.on('end',()=>{
+      res.setHeader('Content-Type','text/html; charset=utf-8');
+      res.setHeader('Cache-Control','no-cache');
+      res.writeHead(200);
+      res.end(d);
+    });
+  }).on('error',e=>{res.writeHead(500);res.end('Error: '+e.message)});
+}).listen(PORT,()=>console.log('RPM corriendo en puerto',PORT));
