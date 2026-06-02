@@ -1,6 +1,6 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "curl -L 'https://raw.githubusercontent.com/rlmpp9-cyber/rpm-frontend/main/index.html' -o index.html && echo 'Archivo descargado' && wc -c index.html"
+buildCommand = "npm install"
 
 [deploy]
 startCommand = "node server.js"
