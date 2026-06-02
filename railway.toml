@@ -3,6 +3,6 @@ builder = "NIXPACKS"
 buildCommand = "npm install"
 
 [deploy]
-startCommand = "node server.js"
+startCommand = "node app.js"
 healthcheckPath = "/"
 healthcheckTimeout = 30
