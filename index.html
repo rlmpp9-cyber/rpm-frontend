@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RPM Estudio Automotriz v2</title>
+<title>RPM Estudio Automotriz</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -1057,8 +1057,6 @@ async function abrirDetalleOrden(id) {
     ${r.estado==='finalizado'?`<button class="btn btn-primary" onclick="showPage('facturacion');closeModal('modal-detalle-orden')">Ir a facturar</button>`:''}`;
   openModal('modal-detalle-orden');
 }
-  openModal('modal-detalle-orden');
-}
 
 function renderEditItems() {
   const TIPO_L = {mano_obra:'Mano obra',material:'Material',repuesto:'Repuesto',externo:'Externo'};
@@ -1476,6 +1474,10 @@ async function loadInventario() {
   document.getElementById('inv-alertas').innerHTML = alertas.length
     ? `<div class="alert alert-danger" style="margin-bottom:14px">⚠ <strong>${alertas.length} producto(s) con stock bajo:</strong> ${alertas.map(p=>p.nombre).join(' · ')}</div>` : '';
   renderTablaInventario(todosProductos);
+  // Actualizar selector de productos en modal SRI
+  const opts = todosProductos.map(p=>`<option value="${p.id}">${p.nombre} (${p.unidad})</option>`).join('');
+  const sel = document.getElementById('sri-prod-sel');
+  if (sel) sel.innerHTML = '<option value="">Seleccionar producto...</option>' + opts;
   poblarProductosCompra();
 }
 
@@ -1949,13 +1951,7 @@ async function guardarFacturaSRI() {
 }
 
 // Poblar selector de productos en modal SRI al abrir inventario
-const _origLoadInv = loadInventario;
-async function loadInventario() {
-  await _origLoadInv();
-  const opts = todosProductos.map(p=>`<option value="${p.id}">${p.nombre} (${p.unidad})</option>`).join('');
-  const sel = document.getElementById('sri-prod-sel');
-  if (sel) sel.innerHTML = '<option value="">Seleccionar producto...</option>' + opts;
-}
+// (integrado en loadInventario principal)
 
 // Iniciar cotizador al cargar
 window.addEventListener('load', () => {
