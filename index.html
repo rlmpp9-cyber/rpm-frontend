@@ -1934,19 +1934,20 @@ function preLlenarProductoSRI(descripcion, cantidad, precio) {
     prodSel.scrollIntoView({behavior:'smooth', block:'center'});
   } else {
     // No existe — crear nuevo producto directamente
+   // Usar modal personalizado en lugar de confirm nativo
     if (!confirm(`"${descripcion}" no existe en el inventario.\n¿Deseas crearlo como producto nuevo?`)) return;
-    // Guardar estado del modal SRI
     window._sriPendiente = { descripcion, cantidad, precio };
-    // Pre-llenar modal nuevo producto
-    document.getElementById('prod-nombre').value = descripcion;
-    document.getElementById('prod-costo').value = precio.toFixed(2);
-    document.getElementById('prod-venta').value = precio.toFixed(2);
-    document.getElementById('prod-stock').value = 0;
-    document.getElementById('prod-stock-min').value = 0;
-    document.getElementById('prod-edit-id').value = '';
-    document.querySelector('#modal-nuevo-producto .modal-title').textContent = 'Nuevo producto (desde factura SRI)';
-    autoCodigoProd(document.getElementById('prod-cat').value);
-    openModal('modal-nuevo-producto');
+    setTimeout(() => {
+      document.getElementById('prod-nombre').value = descripcion;
+      document.getElementById('prod-costo').value = precio.toFixed(2);
+      document.getElementById('prod-venta').value = precio.toFixed(2);
+      document.getElementById('prod-stock').value = 0;
+      document.getElementById('prod-stock-min').value = 0;
+      document.getElementById('prod-edit-id').value = '';
+      document.querySelector('#modal-nuevo-producto .modal-title').textContent = 'Nuevo producto (desde factura SRI)';
+      autoCodigoProd(document.getElementById('prod-cat').value);
+      openModal('modal-nuevo-producto');
+    }, 100);
   }
 }
 // ═══════════ FACTURA SRI ═══════════
