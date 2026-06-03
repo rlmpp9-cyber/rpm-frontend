@@ -1906,12 +1906,13 @@ async function consultarSRI() {
     if (r.total) document.getElementById('sri-total').value = r.total;
     resEl.classList.remove('hidden');
   } else if (r?.error) {
-    // Si el SRI no responde, mostrar campos para llenar manual
-    errEl.textContent = '⚠ No se pudo consultar el SRI automáticamente. Puedes ingresar los datos manualmente abajo.';
+    errEl.textContent = '⚠ No se pudo consultar el SRI automáticamente.';
     errEl.classList.remove('hidden');
+    document.getElementById('sri-pdf-section').classList.remove('hidden');
   } else {
-    errEl.textContent = 'No se encontró el comprobante o no está autorizado';
+    errEl.textContent = 'No se encontró el comprobante o no está autorizado en el SRI.';
     errEl.classList.remove('hidden');
+    document.getElementById('sri-pdf-section').classList.remove('hidden');
   }
 }
 
