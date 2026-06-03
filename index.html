@@ -1860,7 +1860,101 @@ async function guardarGasto() {
   if (r?.id) { closeModal('modal-nuevo-gasto'); loadFinanzas(); }
   else alert(r?.error||'Error al guardar');
 }
+async function procesarPDFFactura(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('pdf-procesando').classList.remove('hidden');
+  try {
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    const isPDF = file.type === 'application/pdf';
+    const mediaType = isPDF ? 'application/pdf' : file.type;
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: isPDF ? 'document' : 'image',
+              source: { type: 'base64', media_type: mediaType, data: base64 }
+            },
+            {
+              type: 'text',
+              text: `Extrae los datos de esta factura ecuatoriana y responde SOLO con JSON válido sin markdown:
+{
+  "numero_factura": "001-001-000000001",
+  "fecha_emision": "YYYY-MM-DD",
+  "ruc_emisor": "RUC del proveedor",
+  "razon_social_emisor": "Nombre del proveedor",
+  "total": 0.00,
+  "subtotal": 0.00,
+  "iva": 0.00,
+  "items": [
+    {
+      "descripcion": "nombre del producto",
+      "cantidad": 1,
+      "precio_unitario": 0.00,
+      "subtotal": 0.00
+    }
+  ]
+}`
+            }
+          ]
+        }]
+      })
+    });
+    const data = await response.json();
+    const text = data.content?.find(b => b.type === 'text')?.text || '';
+    const clean = text.replace(/```json|```/g, '').trim();
+    const factura = JSON.parse(clean);
+    // Poblar campos del formulario
+    if (factura.numero_factura) document.getElementById('sri-num-factura').value = factura.numero_factura;
+    if (factura.fecha_emision) document.getElementById('sri-fecha').value = factura.fecha_emision;
+    if (factura.razon_social_emisor) document.getElementById('sri-proveedor').value = factura.razon_social_emisor;
+    if (factura.ruc_emisor) document.getElementById('sri-ruc-prov').value = factura.ruc_emisor;
+    if (factura.total) document.getElementById('sri-total').value = factura.total;
+    // Mostrar items extraídos para asignar al inventario
+    if (factura.items?.length) {
+      document.getElementById('sri-pdf-section').innerHTML += `
+        <div style="margin-top:12px;padding:10px;background:var(--ok-bg);border-radius:8px">
+          <div style="font-size:11px;font-weight:600;color:var(--ok);margin-bottom:8px">✓ ${factura.items.length} productos extraídos — asígnalos al inventario abajo:</div>
+          ${factura.items.map((item,i) => `
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+              <span style="flex:1;font-weight:500">${item.descripcion}</span>
+              <span style="color:var(--t3)">${item.cantidad} × $${parseFloat(item.precio_unitario).toFixed(2)}</span>
+              <button class="btn btn-primary btn-sm" onclick="preLlenarProductoSRI('${item.descripcion.replace(/'/g,"\\'")}',${item.cantidad},${item.precio_unitario})">+ Inventario</button>
+            </div>`).join('')}
+        </div>`;
+    }
+    document.getElementById('sri-resultado').classList.remove('hidden');
+    document.getElementById('sri-ok-msg').textContent = `✓ Factura procesada: ${factura.numero_factura || ''} · ${factura.razon_social_emisor || ''}`;
+    document.getElementById('sri-error-msg').classList.add('hidden');
+  } catch(e) {
+    document.getElementById('sri-error-msg').textContent = 'Error al procesar el PDF: ' + e.message;
+    document.getElementById('sri-error-msg').classList.remove('hidden');
+  } finally {
+    document.getElementById('pdf-procesando').classList.add('hidden');
+  }
+}
 
+function preLlenarProductoSRI(descripcion, cantidad, precio) {
+  // Buscar producto existente por nombre similar
+  const prodSel = document.getElementById('sri-prod-sel');
+  const match = todosProductos.find(p => p.nombre.toLowerCase().includes(descripcion.toLowerCase().substring(0,6)));
+  if (match) prodSel.value = match.id;
+  document.getElementById('sri-prod-cant').value = cantidad;
+  document.getElementById('sri-prod-precio').value = precio.toFixed(2);
+  // Scroll al formulario de agregar producto
+  document.getElementById('sri-prod-sel').scrollIntoView({behavior:'smooth', block:'center'});
+}
 // ═══════════ FACTURA SRI ═══════════
 let sriProdItems = [];
 
