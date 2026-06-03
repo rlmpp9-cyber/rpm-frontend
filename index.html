@@ -1640,6 +1640,24 @@ async function guardarProducto() {
     document.getElementById('prod-edit-id').value='';
     document.querySelector('#modal-nuevo-producto .modal-title').textContent='Nuevo producto';
     loadInventario();
+    // Si venía desde SRI, volver al modal SRI y pre-llenar el producto
+    if (window._sriPendiente) {
+      const p = window._sriPendiente;
+      window._sriPendiente = null;
+      setTimeout(() => {
+        openModal('modal-factura-sri-compra');
+        // Actualizar selector con el nuevo producto
+        const sel = document.getElementById('sri-prod-sel');
+        const newOpt = document.createElement('option');
+        newOpt.value = r.id;
+        newOpt.text = `${r.nombre} (${r.unidad})`;
+        sel.appendChild(newOpt);
+        sel.value = r.id;
+        document.getElementById('sri-prod-cant').value = p.cantidad;
+        document.getElementById('sri-prod-precio').value = p.precio.toFixed(2);
+        sel.scrollIntoView({behavior:'smooth', block:'center'});
+      }, 300);
+    }
   } else { err.textContent=r?.error||'Error al guardar'; err.classList.remove('hidden'); }
 }
 
