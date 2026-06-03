@@ -648,6 +648,19 @@ textarea.form-input{resize:vertical}
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px" id="sri-datos-grid"></div>
       </div>
       <div id="sri-error-msg" class="alert alert-danger hidden"></div>
+<div id="sri-pdf-section" class="hidden" style="margin-top:10px">
+  <div class="alert alert-warn" style="margin-bottom:10px">⚠ No se pudo consultar el SRI. Puedes subir el PDF o imagen de la factura para extraer los datos automáticamente.</div>
+  <div style="border:2px dashed var(--border);border-radius:8px;padding:20px;text-align:center;cursor:pointer;background:var(--hover)" onclick="document.getElementById('pdf-factura-input').click()">
+    <div style="font-size:24px;margin-bottom:6px">📄</div>
+    <div style="font-size:13px;font-weight:600;color:var(--verde)">Subir PDF o imagen de la factura</div>
+    <div style="font-size:11px;color:var(--t3);margin-top:4px">PDF, JPG o PNG · El sistema extrae los datos automáticamente con IA</div>
+  </div>
+  <input type="file" id="pdf-factura-input" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="procesarPDFFactura(this)">
+  <div id="pdf-procesando" class="hidden" style="text-align:center;padding:16px">
+    <div class="spinner" style="margin:0 auto 8px"></div>
+    <div style="font-size:12px;color:var(--t3)">Extrayendo datos de la factura con IA...</div>
+  </div>
+</div>
 
       <!-- Registro manual -->
       <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Datos de la factura</div>
