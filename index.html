@@ -1955,6 +1955,22 @@ async function consultarSRI() {
     if (r.razon_social_emisor) document.getElementById('sri-proveedor').value = r.razon_social_emisor;
     if (r.ruc_emisor) document.getElementById('sri-ruc-prov').value = r.ruc_emisor;
     if (r.total) document.getElementById('sri-total').value = r.total;
+    // Mostrar items extraídos
+    const itemsExistente = document.getElementById('sri-items-extraidos');
+    if (itemsExistente) itemsExistente.remove();
+    if (r.items?.length) {
+      const div = document.createElement('div');
+      div.id = 'sri-items-extraidos';
+      div.style = 'margin-top:12px;padding:10px;background:var(--ok-bg);border-radius:8px';
+      div.innerHTML = `<div style="font-size:11px;font-weight:600;color:var(--ok);margin-bottom:8px">✓ ${r.items.length} producto(s) en la factura — presiona "+ Inventario" para agregar cada uno:</div>
+        ${r.items.map(item => `
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(0,0,0,.08);font-size:12px">
+          <span style="flex:1;font-weight:500">${item.descripcion}</span>
+          <span style="color:var(--t2)">${item.cantidad} × $${parseFloat(item.precio_unitario).toFixed(2)}</span>
+          <button class="btn btn-primary btn-sm" onclick="preLlenarProductoSRI('${item.descripcion.replace(/'/g,"\\'")}',${item.cantidad},${item.precio_unitario})">+ Inventario</button>
+        </div>`).join('')}`;
+      resEl.appendChild(div);
+    }
     resEl.classList.remove('hidden');
   } else if (r?.error) {
     errEl.textContent = '⚠ No se pudo consultar el SRI automáticamente.';
