@@ -1946,6 +1946,7 @@ function preLlenarProductoSRI(descripcion, cantidad, precio) {
       document.getElementById('prod-edit-id').value = '';
       document.querySelector('#modal-nuevo-producto .modal-title').textContent = 'Nuevo producto (desde factura SRI)';
       autoCodigoProd(document.getElementById('prod-cat').value);
+      closeModal('modal-factura-sri-compra');
       openModal('modal-nuevo-producto');
     }, 100);
   }
