@@ -1593,7 +1593,17 @@ async function guardarMovimiento() {
     document.getElementById('mov-aviso').classList.remove('hidden');
   }
 }
-
+async function autoCodigoProd(categoria) {
+  const editId = document.getElementById('prod-edit-id').value;
+  if (editId) return; // No autocompletar al editar
+  if (!categoria) return;
+  const codigoInput = document.getElementById('prod-codigo');
+  codigoInput.value = 'Generando...';
+  codigoInput.disabled = true;
+  const r = await api('GET', `/api/inventario/siguiente-codigo/${categoria}`);
+  codigoInput.disabled = false;
+  if (r?.codigo) codigoInput.value = r.codigo;
+}
 async function guardarProducto() {
   const nombre = document.getElementById('prod-nombre').value;
   const editId = document.getElementById('prod-edit-id').value;
