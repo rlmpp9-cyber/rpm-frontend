@@ -1734,6 +1734,9 @@ function editarVehiculo(id) {
   document.getElementById('veh-km').value = v.kilometraje||0;
   document.getElementById('veh-cliente').value = v.cliente_id||'';
   document.getElementById('veh-cliente-buscar').value = v.cliente_nombre ? `${v.cliente_nombre} · ${v.cliente_id_num||''}` : '';
+  document.getElementById('veh-cliente-buscar').disabled = false;
+  document.getElementById('veh-cliente-resultados').style.display = 'none';
+  if (!todosClientes.length) await loadClientes();
   openModal('modal-nuevo-vehiculo');
 }
 
