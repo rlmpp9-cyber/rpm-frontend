@@ -1736,7 +1736,7 @@ function editarVehiculo(id) {
   document.getElementById('veh-cliente-buscar').value = v.cliente_nombre ? `${v.cliente_nombre} · ${v.cliente_id_num||''}` : '';
   document.getElementById('veh-cliente-buscar').disabled = false;
   document.getElementById('veh-cliente-resultados').style.display = 'none';
-  if (!todosClientes.length) await loadClientes();
+  if (!todosClientes.length) loadClientes();
   openModal('modal-nuevo-vehiculo');
 }
 
