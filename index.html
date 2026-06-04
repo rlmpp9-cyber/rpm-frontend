@@ -1696,7 +1696,7 @@ async function loadVehiculos() {
   todosVehiculos = r || [];
   document.getElementById('vehiculos-sub').textContent = todosVehiculos.length + ' registrados';
   renderTablaVehiculos(todosVehiculos);
-  if (!todosClientes.length) await loadClientes();
+  if (!todosClientes.length) loadClientes();
   const opts = todosClientes.map(c=>`<option value="${c.id}">${c.razon_social} · ${c.numero_id}</option>`).join('');
   document.getElementById('veh-cliente').innerHTML = '<option value="">Seleccionar...</option>' + opts;
 }
