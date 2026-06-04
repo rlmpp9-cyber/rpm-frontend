@@ -1334,12 +1334,11 @@ async function abrirDetalleOrden(id) {
     <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Insumos consumidos del inventario</div>
     <div style="background:var(--hover);border-radius:8px;padding:12px;margin-bottom:4px" id="insumos-section">
       <div style="display:grid;grid-template-columns:2fr 0.8fr auto;gap:8px;align-items:end;margin-bottom:10px">
-        <div>
+        <div style="position:relative">
           <div style="font-size:10px;color:var(--t3);margin-bottom:3px">Insumo / Producto</div>
-          <select class="form-select" id="insumo-prod" style="font-size:12px">
-            <option value="">Seleccionar...</option>
-            ${todosProductos.map(p=>`<option value="${p.id}" data-stock="${p.stock_actual}" data-unidad="${p.unidad}">${p.nombre} — Stock: ${parseFloat(p.stock_actual).toFixed(2)} ${p.unidad}</option>`).join('')}
-          </select>
+          <input class="form-input" id="insumo-buscar" style="font-size:12px" placeholder="Buscar insumo o repuesto..." oninput="buscarInsumo(this.value)" autocomplete="off">
+          <input type="hidden" id="insumo-prod">
+          <div id="insumo-resultados" style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:6px;max-height:180px;overflow-y:auto;z-index:300;display:none;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
         </div>
         <div>
           <div style="font-size:10px;color:var(--t3);margin-bottom:3px">Cantidad</div>
@@ -1430,9 +1429,8 @@ async function descontarInsumoOrden(ordenId, ordenNumero) {
   const cant  = parseFloat(document.getElementById('insumo-cant').value)||0;
   const aviso = document.getElementById('insumo-aviso');
   if (!sel.value || !cant) { aviso.innerHTML='<span style="color:var(--red)">Selecciona un producto e ingresa la cantidad</span>'; return; }
-  const opt   = sel.options[sel.selectedIndex];
-  const stock = parseFloat(opt.dataset.stock||0);
-  const unidad = opt.dataset.unidad||'';
+  const stock = parseFloat(sel.dataset.stock||0);
+  const unidad = sel.dataset.unidad||'';
   if (cant > stock) { aviso.innerHTML=`<span style="color:var(--red)">⚠ Stock insuficiente. Disponible: ${stock.toFixed(2)} ${unidad}</span>`; return; }
   const r = await api('POST', `/api/inventario/${sel.value}/movimiento`, {
     tipo:'salida', cantidad:cant,
@@ -2590,6 +2588,41 @@ function seleccionarClienteVeh(id, nombre, numeroId) {
   document.getElementById('veh-cliente').value = id;
   document.getElementById('veh-cliente-buscar').value = `${nombre} · ${numeroId}`;
   document.getElementById('veh-cliente-resultados').style.display = 'none';
+}
+  function buscarInsumo(q) {
+  const res = document.getElementById('insumo-resultados');
+  document.getElementById('insumo-prod').value = '';
+  if (!q || q.length < 1) { res.style.display = 'none'; return; }
+  const filtrados = todosProductos.filter(p =>
+    p.nombre.toLowerCase().includes(q.toLowerCase()) ||
+    (p.codigo && p.codigo.toLowerCase().includes(q.toLowerCase()))
+  ).slice(0, 10);
+  if (!filtrados.length) {
+    res.style.display = 'block';
+    res.innerHTML = '<div style="padding:8px 12px;font-size:12px;color:var(--t3)">No encontrado</div>';
+    return;
+  }
+  res.style.display = 'block';
+  res.innerHTML = filtrados.map(p => `
+    <div onclick="seleccionarInsumo('${p.id}','${p.nombre.replace(/'/g,"\\'")}',${p.stock_actual},'${p.unidad}')"
+      style="padding:8px 12px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--border)"
+      onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background=''">
+      <div style="display:flex;justify-content:space-between">
+        <span style="font-weight:500">${p.nombre}</span>
+        <span style="font-size:11px;color:${parseFloat(p.stock_actual)<=parseFloat(p.stock_minimo)?'var(--red)':'var(--ok)'};font-weight:600">Stock: ${parseFloat(p.stock_actual).toFixed(2)} ${p.unidad}</span>
+      </div>
+      <div style="font-size:10px;color:var(--t3)">${p.codigo||''} · ${p.categoria||''}</div>
+    </div>`).join('');
+}
+
+function seleccionarInsumo(id, nombre, stock, unidad) {
+  document.getElementById('insumo-prod').value = id;
+  document.getElementById('insumo-buscar').value = nombre;
+  document.getElementById('insumo-resultados').style.display = 'none';
+  // Actualizar data en el hidden input
+  const hidden = document.getElementById('insumo-prod');
+  hidden.dataset.stock = stock;
+  hidden.dataset.unidad = unidad;
 }
  // ═══════════ CONTABILIDAD ═══════════
 function setCTab(tab) {
