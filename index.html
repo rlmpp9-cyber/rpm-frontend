@@ -2589,10 +2589,14 @@ function seleccionarClienteVeh(id, nombre, numeroId) {
   document.getElementById('veh-cliente-buscar').value = `${nombre} · ${numeroId}`;
   document.getElementById('veh-cliente-resultados').style.display = 'none';
 }
-  function buscarInsumo(q) {
+  async function buscarInsumo(q) {
   const res = document.getElementById('insumo-resultados');
   document.getElementById('insumo-prod').value = '';
   if (!q || q.length < 1) { res.style.display = 'none'; return; }
+  if (!todosProductos.length) {
+    const r = await api('GET', '/api/inventario');
+    todosProductos = r || [];
+  }
   const filtrados = todosProductos.filter(p =>
     p.nombre.toLowerCase().includes(q.toLowerCase()) ||
     (p.codigo && p.codigo.toLowerCase().includes(q.toLowerCase()))
@@ -2614,7 +2618,6 @@ function seleccionarClienteVeh(id, nombre, numeroId) {
       <div style="font-size:10px;color:var(--t3)">${p.codigo||''} · ${p.categoria||''}</div>
     </div>`).join('');
 }
-
 function seleccionarInsumo(id, nombre, stock, unidad) {
   document.getElementById('insumo-prod').value = id;
   document.getElementById('insumo-buscar').value = nombre;
