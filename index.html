@@ -1314,20 +1314,64 @@ async function abrirDetalleOrden(id) {
     <!-- Ítems -->
     <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Ítems del trabajo</div>
     <div id="edit-items-list"></div>
-    <div style="background:var(--hover);border-radius:8px;padding:10px;display:grid;grid-template-columns:0.9fr 1.6fr 0.5fr 0.8fr auto;gap:6px;align-items:end;margin-bottom:8px">
-      <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Tipo</div>
-        <select class="form-select" id="edit-item-tipo" style="font-size:12px;padding:7px 8px">
-          <option value="mano_obra">Mano obra</option><option value="material">Material</option>
-          <option value="repuesto">Repuesto</option><option value="externo">Externo</option>
-        </select></div>
-      <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Descripción</div>
-        <input class="form-input" id="edit-item-desc" style="font-size:12px;padding:7px 8px" placeholder="Ej: Latonería puerta"></div>
-      <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Cant.</div>
-        <input class="form-input" id="edit-item-cant" type="number" min="0.1" step="0.1" value="1" style="font-size:12px;padding:7px 8px"></div>
-      <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">P. unitario $</div>
-        <input class="form-input" id="edit-item-precio" type="number" min="0" step="0.01" placeholder="0.00" style="font-size:12px;padding:7px 8px"></div>
-      <button class="btn btn-primary btn-sm" onclick="agregarEditItem()">+ Add</button>
+
+    <!-- Tabs para agregar items -->
+    <div style="display:flex;gap:6px;margin-bottom:8px">
+      <button class="btn btn-sm btn-primary" id="itab-mano" onclick="setITab('mano_obra')">🔧 Mano de obra</button>
+      <button class="btn btn-sm btn-secondary" id="itab-repuesto" onclick="setITab('repuesto')">🔩 Repuesto</button>
+      <button class="btn btn-sm btn-secondary" id="itab-externo" onclick="setITab('externo')">🚗 Servicio externo</button>
     </div>
+
+    <!-- Mano de obra -->
+    <div id="isec-mano_obra" style="background:var(--hover);border-radius:8px;padding:10px;margin-bottom:8px">
+      <div style="display:grid;grid-template-columns:2fr 0.5fr 0.8fr auto;gap:6px;align-items:end">
+        <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Descripción</div>
+          <input class="form-input" id="edit-item-desc" style="font-size:12px" placeholder="Ej: Latonería puerta"></div>
+        <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Cant.</div>
+          <input class="form-input" id="edit-item-cant" type="number" min="0.1" step="0.1" value="1" style="font-size:12px"></div>
+        <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">P. unitario $</div>
+          <input class="form-input" id="edit-item-precio" type="number" min="0" step="0.01" placeholder="0.00" style="font-size:12px"></div>
+        <button class="btn btn-primary btn-sm" onclick="agregarEditItem('mano_obra')">+ Add</button>
+      </div>
+    </div>
+
+    <!-- Repuesto -->
+    <div id="isec-repuesto" style="background:var(--hover);border-radius:8px;padding:10px;margin-bottom:8px;display:none">
+      <div style="display:grid;grid-template-columns:2fr 0.5fr 0.8fr 0.8fr 0.7fr auto;gap:6px;align-items:end">
+        <div style="position:relative">
+          <div style="font-size:10px;color:var(--t3);margin-bottom:3px">Buscar repuesto</div>
+          <input class="form-input" id="rep-buscar" style="font-size:12px" placeholder="Nombre o código..." oninput="buscarRepuesto(this.value)" autocomplete="off">
+          <input type="hidden" id="rep-prod-id">
+          <div id="rep-resultados" style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:6px;max-height:160px;overflow-y:auto;z-index:300;display:none;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
+        </div>
+        <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Cant.</div>
+          <input class="form-input" id="rep-cant" type="number" min="0.1" step="0.1" value="1" style="font-size:12px" oninput="calcRepSubtotal()"></div>
+        <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">P. venta $</div>
+          <input class="form-input" id="rep-precio" type="number" min="0" step="0.01" placeholder="0.00" style="font-size:12px" oninput="calcRepSubtotal()"></div>
+        <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Desc. $</div>
+          <input class="form-input" id="rep-descuento" type="number" min="0" step="0.01" value="0" style="font-size:12px" oninput="calcRepSubtotal()"></div>
+        <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Subtotal</div>
+          <div id="rep-subtotal" style="font-size:12px;font-weight:600;padding:9px 4px;color:var(--verde)">$0.00</div></div>
+        <button class="btn btn-primary btn-sm" onclick="agregarRepuesto()">+ Add</button>
+      </div>
+      <div id="rep-stock-info" style="font-size:11px;color:var(--t3);margin-top:6px"></div>
+    </div>
+
+    <!-- Servicio externo -->
+    <div id="isec-externo" style="background:var(--hover);border-radius:8px;padding:10px;margin-bottom:8px;display:none">
+      <div style="display:grid;grid-template-columns:1.5fr 1fr 0.5fr 0.8fr auto;gap:6px;align-items:end">
+        <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Descripción</div>
+          <input class="form-input" id="ext-desc" style="font-size:12px" placeholder="Ej: Tapizado asientos"></div>
+        <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Proveedor</div>
+          <input class="form-input" id="ext-proveedor" style="font-size:12px" placeholder="Nombre del proveedor"></div>
+        <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Cant.</div>
+          <input class="form-input" id="ext-cant" type="number" min="0.1" step="0.1" value="1" style="font-size:12px"></div>
+        <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">P. unitario $</div>
+          <input class="form-input" id="ext-precio" type="number" min="0" step="0.01" placeholder="0.00" style="font-size:12px"></div>
+        <button class="btn btn-primary btn-sm" onclick="agregarEditItem('externo')">+ Add</button>
+      </div>
+    </div>
+
     <div id="edit-total" style="text-align:right;font-size:12px;padding:6px 0;margin-bottom:14px"></div>
 
     <!-- Insumos del inventario -->
