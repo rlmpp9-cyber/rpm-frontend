@@ -1739,7 +1739,7 @@ async function guardarVehiculo() {
   if (!placa||!marca||!modelo) { err.textContent='Placa, marca y modelo son obligatorios'; err.classList.remove('hidden'); return; }
   err.classList.add('hidden');
   const r = editId
-    ? await api('PUT', `/api/vehiculos/${editId}`, {color:document.getElementById('veh-color').value, tipo_color:document.getElementById('veh-tipo-color').value, kilometraje:parseInt(document.getElementById('veh-km').value)||0})
+    ? await api('PUT', `/api/vehiculos/${editId}`, {cliente_id:document.getElementById('veh-cliente').value, color:document.getElementById('veh-color').value, tipo_color:document.getElementById('veh-tipo-color').value, kilometraje:parseInt(document.getElementById('veh-km').value)||0})
     : await api('POST', '/api/vehiculos', {
         cliente_id:document.getElementById('veh-cliente').value,
         placa, marca, modelo,
