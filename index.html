@@ -2726,6 +2726,78 @@ async function pagarRol(id) {
   if (r?.id) loadNomina();
   else alert(r?.error||'Error al registrar pago');
 }
+  // ── IVA 104A ──
+async function loadIVA() {
+  const semestre = document.getElementById('iva-semestre')?.value || '1';
+  const anio = document.getElementById('iva-anio')?.value || new Date().getFullYear();
+  const r = await api('GET', `/api/contabilidad/resumen-iva?semestre=${semestre}&anio=${anio}`);
+  if (!r) return;
+  const mesVence = semestre==='1' ? 'julio' : 'enero';
+  document.getElementById('iva-resumen').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="card" style="border-top:3px solid var(--ok)">
+        <div style="font-size:11px;font-weight:600;color:var(--t3);margin-bottom:12px;text-transform:uppercase">VENTAS (Casilleros 400s)</div>
+        ${[['501 - Base imponible gravada','$'+parseFloat(r.casillero_501||0).toFixed(2)],['601 - IVA cobrado (15%)','$'+parseFloat(r.casillero_601||0).toFixed(2)],['Total ventas','$'+parseFloat(r.ventas?.total||0).toFixed(2)]].map(([k,v],i)=>`
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:${i<2?'1px solid var(--border)':'none'};font-size:13px;font-weight:${i===2?700:400}">
+            <span style="color:var(--t2)">${k}</span><span style="color:${i===2?'var(--ok)':'var(--t1)'}">${v}</span></div>`).join('')}
+      </div>
+      <div class="card" style="border-top:3px solid var(--info)">
+        <div style="font-size:11px;font-weight:600;color:var(--t3);margin-bottom:12px;text-transform:uppercase">COMPRAS (Casilleros 500s)</div>
+        ${[['511 - Base imponible compras','$'+parseFloat(r.casillero_511||0).toFixed(2)],['611 - IVA pagado (crédito)','$'+parseFloat(r.casillero_611||0).toFixed(2)],['Total compras','$'+parseFloat(r.compras?.total||0).toFixed(2)]].map(([k,v],i)=>`
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:${i<2?'1px solid var(--border)':'none'};font-size:13px;font-weight:${i===2?700:400}">
+            <span style="color:var(--t2)">${k}</span><span style="color:${i===2?'var(--info)':'var(--t1)'}">${v}</span></div>`).join('')}
+      </div>
+    </div>
+    <div class="card" style="border-top:3px solid ${parseFloat(r.iva_pagar||0)>0?'var(--red)':'var(--ok)'}">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:15px;font-weight:700">${parseFloat(r.iva_pagar||0)>0?'IVA A PAGAR AL SRI':'Sin IVA a pagar'}</div>
+          <div style="font-size:12px;color:var(--t3);margin-top:4px">Formulario 104A · Vence en ${mesVence} ${parseFloat(semestre)===2?parseInt(anio)+1:anio} · RUC dígito 5 → día ~18</div>
+        </div>
+        <div style="font-size:32px;font-weight:700;color:${parseFloat(r.iva_pagar||0)>0?'var(--red)':'var(--ok)'}">$${parseFloat(r.iva_pagar||0).toFixed(2)}</div>
+      </div>
+    </div>`;
+}
+
+// ── RESUMEN ANUAL ──
+async function loadResumenAnual() {
+  const anio = document.getElementById('anual-anio')?.value || new Date().getFullYear();
+  const r = await api('GET', `/api/contabilidad/resumen-anual?anio=${anio}`);
+  if (!r) return;
+  const margen = r.ingresos > 0 ? ((r.utilidad_neta/r.ingresos)*100).toFixed(1) : 0;
+  document.getElementById('anual-resumen').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px">
+      <div class="card">
+        <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;margin-bottom:12px">Estado de resultados ${anio}</div>
+        ${[['Ingresos brutos (ventas)','$'+parseFloat(r.ingresos||0).toFixed(2),'var(--ok)'],
+           ['Gastos operativos','-$'+parseFloat(r.gastos_operativos||0).toFixed(2),'var(--red)'],
+           ['Nómina (sueldos pagados)','-$'+parseFloat(r.gastos_nomina||0).toFixed(2),'var(--red)'],
+           ['Depreciación activos','-$'+parseFloat(r.depreciacion||0).toFixed(2),'var(--warn)'],
+           ['Gastos preoperativos','-$'+parseFloat(r.gastos_preoperativos||0).toFixed(2),'var(--warn)'],
+           ['UTILIDAD NETA','$'+parseFloat(r.utilidad_neta||0).toFixed(2),parseFloat(r.utilidad_neta||0)>=0?'var(--ok)':'var(--red)']
+        ].map(([k,v,c],i)=>`
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:${i<5?'1px solid var(--border)':'none'};font-weight:${i===5?700:400}">
+            <span style="color:var(--t2);font-size:13px">${k}</span>
+            <span style="color:${c};font-size:13px">${v}</span></div>`).join('')}
+        <div style="margin-top:10px;padding:10px;background:var(--hover);border-radius:6px;text-align:center">
+          <div style="font-size:11px;color:var(--t3)">Margen neto</div>
+          <div style="font-size:22px;font-weight:700;color:${parseFloat(margen)>=0?'var(--ok)':'var(--red)'}">${margen}%</div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;margin-bottom:12px">Formulario 102A · Renta ${anio}</div>
+        <div style="font-size:12px;color:var(--t3);margin-bottom:12px">RIMPE Emprendedor — tarifa progresiva sobre ingresos brutos</div>
+        ${[['Ingresos brutos','$'+parseFloat(r.ingresos||0).toFixed(2)],
+           ['Fracción básica (RIMPE)','Hasta $20,000 → 0%'],
+           ['Impuesto estimado','$0.00 (si ingresos < $20,000)'],
+           ['Vence','Marzo '+(parseInt(anio)+1)],
+        ].map(([k,v])=>`
+          <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px">
+            <span style="color:var(--t2)">${k}</span><span style="font-weight:500">${v}</span></div>`).join('')}
+        <div class="alert alert-info" style="margin-top:12px;font-size:11px">ℹ️ Estos datos son referenciales. Confirma con tu contador antes de declarar.</div>
+      </div>
+    </div>`;
+}
 // Iniciar cotizador al cargar
 window.addEventListener('load', () => {
   if (TOKEN) calcCotizador();
