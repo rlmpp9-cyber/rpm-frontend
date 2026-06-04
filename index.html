@@ -367,7 +367,80 @@ textarea.form-input{resize:vertical}
         <div class="table-wrap" id="fact-tabla"></div>
       </div>
     </div>
+<div class="page hidden" id="page-contabilidad">
+      <div class="sec-header">
+        <div><div class="sec-title">Contabilidad</div><div class="sec-sub">Gastos preoperativos · Activos fijos · Nómina · Declaración SRI</div></div>
+      </div>
+      <!-- Tabs -->
+      <div style="display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap">
+        <button class="btn" id="ctab-preop" onclick="setCTab('preop')" style="background:var(--verde);color:#fff">📦 Preoperativos</button>
+        <button class="btn btn-secondary" id="ctab-activos" onclick="setCTab('activos')">🏭 Activos fijos</button>
+        <button class="btn btn-secondary" id="ctab-nomina" onclick="setCTab('nomina')">👷 Nómina</button>
+        <button class="btn btn-secondary" id="ctab-iva" onclick="setCTab('iva')">📋 Declaración IVA</button>
+        <button class="btn btn-secondary" id="ctab-anual" onclick="setCTab('anual')">📊 Resumen anual</button>
+      </div>
 
+      <!-- Preoperativos -->
+      <div id="csec-preop">
+        <div class="sec-header">
+          <div><div class="sec-title" style="font-size:13px">Gastos preoperativos</div><div class="sec-sub">Inversión inicial desde febrero 2026</div></div>
+          <button class="btn btn-primary" onclick="openModal('modal-nuevo-preop')">+ Agregar gasto</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px" id="preop-kpis"></div>
+        <div class="card"><div class="table-wrap" id="preop-tabla"></div></div>
+      </div>
+
+      <!-- Activos fijos -->
+      <div id="csec-activos" class="hidden">
+        <div class="sec-header">
+          <div><div class="sec-title" style="font-size:13px">Activos fijos</div><div class="sec-sub">Depreciación línea recta</div></div>
+          <button class="btn btn-primary" onclick="openModal('modal-nuevo-activo')">+ Agregar activo</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px" id="activos-kpis"></div>
+        <div class="card"><div class="table-wrap" id="activos-tabla"></div></div>
+      </div>
+
+      <!-- Nómina -->
+      <div id="csec-nomina" class="hidden">
+        <div class="sec-header">
+          <div><div class="sec-title" style="font-size:13px">Nómina</div><div class="sec-sub">Roles de pago · IESS · Beneficios sociales</div></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary" onclick="openModal('modal-nuevo-empleado')">+ Empleado</button>
+            <button class="btn btn-primary" onclick="openModal('modal-generar-rol')">📋 Generar rol</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px" id="nomina-kpis"></div>
+        <div class="card" style="margin-bottom:16px">
+          <div style="font-weight:600;font-size:13px;margin-bottom:12px">Empleados activos</div>
+          <div id="empleados-lista"></div>
+        </div>
+        <div class="card">
+          <div style="font-weight:600;font-size:13px;margin-bottom:12px">Roles de pago</div>
+          <div class="table-wrap" id="roles-tabla"></div>
+        </div>
+      </div>
+
+      <!-- Declaración IVA -->
+      <div id="csec-iva" class="hidden">
+        <div class="sec-header">
+          <div><div class="sec-title" style="font-size:13px">Declaración IVA 104A</div><div class="sec-sub">RIMPE Emprendedor · Semestral</div></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select class="form-select" id="iva-semestre" style="width:120px" onchange="loadIVA()"><option value="1">1er Semestre</option><option value="2">2do Semestre</option></select>
+            <select class="form-select" id="iva-anio" style="width:90px" onchange="loadIVA()"></select>
+          </div>
+        </div>
+        <div id="iva-resumen"></div>
+      </div>
+
+      <!-- Resumen anual -->
+      <div id="csec-anual" class="hidden">
+        <div class="sec-header">
+          <div><div class="sec-title" style="font-size:13px">Resumen anual · Renta 102A</div></div>
+          <select class="form-select" id="anual-anio" style="width:90px" onchange="loadResumenAnual()"></select>
+        </div>
+        <div id="anual-resumen"></div>
+      </div>
+    </div>
     <div class="page hidden" id="page-finanzas">
       <div class="sec-header">
         <div><div class="sec-title">Finanzas</div><div class="sec-sub">Control de ingresos y gastos</div></div>
@@ -790,7 +863,122 @@ textarea.form-input{resize:vertical}
     </div>
   </div>
 </div>
+<!-- Nuevo Gasto Preoperativo -->
+<div class="overlay hidden" id="modal-nuevo-preop">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">Gasto preoperativo</div><button class="close-btn" onclick="closeModal('modal-nuevo-preop')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Descripción *</label><input class="form-input" id="preop-desc" placeholder="Ej: Adecuación local"></div>
+        <div class="form-group"><label class="form-label">Categoría</label>
+          <select class="form-select" id="preop-cat">
+            <option value="adecuacion">Adecuación local</option>
+            <option value="equipos">Equipos y herramientas</option>
+            <option value="licencias">Licencias y permisos</option>
+            <option value="publicidad">Publicidad inicial</option>
+            <option value="inventario_inicial">Inventario inicial</option>
+            <option value="otros">Otros</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Fecha *</label><input class="form-input" type="date" id="preop-fecha"></div>
+        <div class="form-group"><label class="form-label">Monto $ *</label><input class="form-input" type="number" id="preop-monto" min="0" step="0.01" placeholder="0.00"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Proveedor</label><input class="form-input" id="preop-proveedor" placeholder="Nombre del proveedor"></div>
+        <div class="form-group"><label class="form-label">N° Factura</label><input class="form-input" id="preop-factura" placeholder="001-001-000000001"></div>
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="preop-tiene-factura" checked> Tiene factura/comprobante
+        </label>
+      </div>
+      <div class="form-group"><label class="form-label">Notas</label><textarea class="form-input" rows="2" id="preop-notas"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('modal-nuevo-preop')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarPreop()">Guardar</button>
+    </div>
+  </div>
+</div>
 
+<!-- Nuevo Activo Fijo -->
+<div class="overlay hidden" id="modal-nuevo-activo">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">Activo fijo</div><button class="close-btn" onclick="closeModal('modal-nuevo-activo')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Nombre *</label><input class="form-input" id="activo-nombre" placeholder="Ej: Compresor de aire"></div>
+        <div class="form-group"><label class="form-label">Categoría</label>
+          <select class="form-select" id="activo-cat">
+            <option value="equipo">Equipo</option>
+            <option value="herramienta">Herramienta</option>
+            <option value="vehiculo">Vehículo</option>
+            <option value="mueble">Mueble/Ensere</option>
+            <option value="electronico">Electrónico</option>
+            <option value="mejora">Mejora local</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Fecha adquisición *</label><input class="form-input" type="date" id="activo-fecha"></div>
+        <div class="form-group"><label class="form-label">Valor adquisición $ *</label><input class="form-input" type="number" id="activo-valor" min="0" step="0.01" placeholder="0.00"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Vida útil (años)</label><input class="form-input" type="number" id="activo-vida" value="5" min="1" max="20"></div>
+        <div class="form-group"><label class="form-label">Valor residual $</label><input class="form-input" type="number" id="activo-residual" value="0" min="0" step="0.01"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Descripción</label><textarea class="form-input" rows="2" id="activo-desc"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('modal-nuevo-activo')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarActivo()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Nuevo Empleado -->
+<div class="overlay hidden" id="modal-nuevo-empleado">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">Nuevo empleado</div><button class="close-btn" onclick="closeModal('modal-nuevo-empleado')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Nombre completo *</label><input class="form-input" id="emp-nombre"></div>
+        <div class="form-group"><label class="form-label">Cédula</label><input class="form-input" id="emp-cedula"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Cargo</label><input class="form-input" id="emp-cargo" placeholder="Ej: Latonero"></div>
+        <div class="form-group"><label class="form-label">Fecha ingreso *</label><input class="form-input" type="date" id="emp-fecha"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Sueldo base $ *</label><input class="form-input" type="number" id="emp-sueldo" min="460" step="0.01" placeholder="460.00"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('modal-nuevo-empleado')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEmpleado()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Generar Rol de Pago -->
+<div class="overlay hidden" id="modal-generar-rol">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">Generar rol de pago</div><button class="close-btn" onclick="closeModal('modal-generar-rol')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Empleado *</label><select class="form-select" id="rol-empleado"><option value="">Seleccionar...</option></select></div>
+        <div class="form-group"><label class="form-label">Período (YYYY-MM) *</label><input class="form-input" id="rol-periodo" placeholder="2026-04"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Horas extra</label><input class="form-input" type="number" id="rol-horas" value="0" min="0" step="0.5"></div>
+      <div id="rol-preview" style="background:var(--hover);border-radius:8px;padding:12px;margin-top:12px;font-size:12px;display:none"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('modal-generar-rol')">Cancelar</button>
+      <button class="btn btn-secondary" onclick="previsualizarRol()">👁 Previsualizar</button>
+      <button class="btn btn-primary" onclick="generarRol()">Generar rol</button>
+    </div>
+  </div>
+</div>
 <!-- Detalle Orden -->
 <div class="overlay hidden" id="modal-detalle-orden">
   <div class="modal">
@@ -879,7 +1067,7 @@ function showPage(name) {
   document.getElementById(`page-${name}`).classList.remove('hidden');
   document.querySelectorAll('.nav-item').forEach(n => { if(n.textContent.toLowerCase().includes(PAGE_TITLES[name]?.toLowerCase().split(' ')[0].toLowerCase())) n.classList.add('active'); });
   document.getElementById('page-title').textContent = PAGE_TITLES[name] || name;
-  const loaders = { dashboard: loadDashboard, ordenes: loadOrdenes, clientes: loadClientes, vehiculos: loadVehiculos, inventario: loadInventario, facturacion: loadFacturacion, finanzas: loadFinanzas };
+  const loaders = { dashboard: loadDashboard, ordenes: loadOrdenes, clientes: loadClientes, vehiculos: loadVehiculos, inventario: loadInventario, facturacion: loadFacturacion, finanzas: loadFinanzas, contabilidad: loadContabilidad };
   if (loaders[name]) loaders[name]();
 }
 
