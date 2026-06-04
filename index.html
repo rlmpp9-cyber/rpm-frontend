@@ -2722,7 +2722,10 @@ async function generarRol() {
 
 async function pagarRol(id) {
   if (!confirm('¿Marcar este rol como pagado? Se registrará el gasto en Finanzas.')) return;
-  const r = await api('PATCH', `/api/nomina/ro 
+  const r = await api('PATCH', `/api/nomina/roles/${id}/pagar`, {});
+  if (r?.id) loadNomina();
+  else alert(r?.error||'Error al registrar pago');
+}
 // Iniciar cotizador al cargar
 window.addEventListener('load', () => {
   if (TOKEN) calcCotizador();
