@@ -1726,7 +1726,7 @@ function editarVehiculo(id) {
   document.getElementById('veh-tipo-color').value = v.tipo_color||'claro';
   document.getElementById('veh-km').value = v.kilometraje||0;
   document.getElementById('veh-cliente').value = v.cliente_id||'';
-  document.getElementById('veh-cliente').disabled = true;
+  document.getElementById('veh-cliente').disabled = false;
   openModal('modal-nuevo-vehiculo');
 }
 
