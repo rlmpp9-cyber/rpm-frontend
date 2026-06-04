@@ -706,7 +706,8 @@ textarea.form-input{resize:vertical}
       <!-- Tipo -->
       <div style="display:flex;gap:8px;margin-bottom:14px">
         <div onclick="setTipoFacturaSRI('compra')" id="sri-tipo-compra" style="flex:1;text-align:center;padding:10px;border:1.5px solid var(--verde);border-radius:8px;cursor:pointer;background:var(--verde-l);font-size:12px;font-weight:600;color:var(--verde-t)">🛒 Factura de compra<br><small style="font-weight:400;opacity:.7">Proveedor → mi inventario</small></div>
-        <div onclick="setTipoFacturaSRI('venta')" id="sri-tipo-venta" style="flex:1;text-align:center;padding:10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--t2)">📄 Factura de venta<br><small style="font-weight:400;opacity:.7">Mis facturas emitidas al SRI</small></div>
+       <div onclick="setTipoFacturaSRI('venta')" id="sri-tipo-venta" style="flex:1;text-align:center;padding:10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--t2)">📄 Factura de venta<br><small style="font-weight:400;opacity:.7">Mis facturas emitidas al SRI</small></div>
+<div onclick="setTipoFacturaSRI('servicio')" id="sri-tipo-servicio" style="flex:1;text-align:center;padding:10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--t2)">🔧 Servicio externo<br><small style="font-weight:400;opacity:.7">Tapizado, mecánica, etc.</small></div>
       </div>
       <input type="hidden" id="sri-tipo" value="compra">
 
@@ -766,6 +767,30 @@ textarea.form-input{resize:vertical}
       <div class="form-group" style="max-width:200px"><label class="form-label">Total de la factura $</label><input class="form-input" type="number" id="sri-total" min="0" step="0.01" placeholder="0.00"></div>
 
       <!-- Productos (solo compra) -->
+      <!-- Sección servicio externo -->
+<div id="sri-servicio-section" style="display:none">
+  <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;margin-top:4px">Detalle del servicio</div>
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Tipo de servicio</label>
+      <select class="form-select" id="sri-tipo-servicio-sel">
+        <option value="tapizado">Tapizado</option>
+        <option value="parabrisas">Cambio de parabrisas</option>
+        <option value="mecanica">Mecánica</option>
+        <option value="soldadura">Soldadura</option>
+        <option value="adecuacion">Adecuación</option>
+        <option value="chasis">Enderezada de chasis</option>
+        <option value="otro_servicio">Otro servicio</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Vincular a orden de trabajo</label>
+      <select class="form-select" id="sri-orden-sel">
+        <option value="">Sin orden específica</option>
+      </select>
+    </div>
+  </div>
+</div>
       <div id="sri-productos-section">
         <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;margin-top:4px">Productos a ingresar al inventario</div>
 
@@ -2228,14 +2253,27 @@ function setSRIMetodo(metodo) {
 
 function setTipoFacturaSRI(tipo) {
   document.getElementById('sri-tipo').value = tipo;
-  ['compra','venta'].forEach(t => {
+  ['compra','venta','servicio'].forEach(t => {
     const el = document.getElementById(`sri-tipo-${t}`);
+    if (!el) return;
     const active = t === tipo;
     el.style.borderColor = active ? 'var(--verde)' : 'var(--border)';
     el.style.background = active ? 'var(--verde-l)' : '';
     el.style.color = active ? 'var(--verde-t)' : 'var(--t2)';
   });
   document.getElementById('sri-productos-section').style.display = tipo === 'compra' ? 'block' : 'none';
+  document.getElementById('sri-servicio-section').style.display = tipo === 'servicio' ? 'block' : 'none';
+  // Poblar órdenes si es servicio
+  if (tipo === 'servicio') poblarOrdenesServicioSRI();
+}
+
+async function poblarOrdenesServicioSRI() {
+  const r = await api('GET', '/api/ordenes?limit=100');
+  const ords = r?.data || [];
+  const sel = document.getElementById('sri-orden-sel');
+  sel.innerHTML = '<option value="">Sin orden específica</option>' +
+    ords.filter(o=>!['entregado','cancelado'].includes(o.estado))
+    .map(o=>`<option value="${o.id}">${o.numero} · ${o.placa} · ${o.cliente_nombre}</option>`).join('');
 }
 
 function toggleNuevoProdSRI() {
@@ -2495,6 +2533,23 @@ async function guardarFacturaSRI() {
     resetModalSRI();
     loadInventario();
     alert(`✓ Factura registrada. ${sriProdItems.length} producto(s) ingresaron al inventario${total > 0 ? ' y se registró el gasto en Finanzas' : ''}.`);
+ } else if (tipo === 'servicio') {
+    const tipoServ = document.getElementById('sri-tipo-servicio-sel').value;
+    const ordenId = document.getElementById('sri-orden-sel').value;
+    const r = await api('POST', '/api/finanzas/gastos', {
+      tipo: 'variable', categoria: 'mano_obra_externa',
+      descripcion: `Servicio externo: ${tipoServ} - ${proveedor || 'Proveedor'} · Fact. ${numFact}`,
+      monto: total, fecha, proveedor, numero_factura: numFact,
+      tipo_servicio: tipoServ,
+      orden_id: ordenId || null
+    });
+    if (r?.id) {
+      closeModal('modal-factura-sri-compra');
+      resetModalSRI();
+      alert(`✓ Servicio externo registrado como gasto${ordenId?' y vinculado a la orden':''}.`);
+    } else {
+      alert(r?.error || 'Error al registrar');
+    }
   } else {
     alert(`✓ Factura de venta ${numFact} registrada.\nTotal: $${total.toFixed(2)}\nEmisor: ${proveedor || '—'}`);
     closeModal('modal-factura-sri-compra');
