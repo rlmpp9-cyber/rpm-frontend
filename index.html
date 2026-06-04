@@ -2501,6 +2501,228 @@ async function guardarFacturaSRI() {
     resetModalSRI();
   }
 }
+ // ═══════════ CONTABILIDAD ═══════════
+function setCTab(tab) {
+  ['preop','activos','nomina','iva','anual'].forEach(t => {
+    document.getElementById(`ctab-${t}`).className = `btn ${t===tab?'btn-primary':'btn-secondary'}`;
+    document.getElementById(`csec-${t}`).classList.toggle('hidden', t!==tab);
+  });
+  if (tab==='preop') loadPreop();
+  if (tab==='activos') loadActivos();
+  if (tab==='nomina') loadNomina();
+  if (tab==='iva') loadIVA();
+  if (tab==='anual') loadResumenAnual();
+}
+
+async function loadContabilidad() {
+  // Poblar selectores de año
+  const anioActual = new Date().getFullYear();
+  ['iva-anio','anual-anio'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (sel) { sel.innerHTML = [anioActual-1, anioActual, anioActual+1].map(y=>`<option value="${y}" ${y===anioActual?'selected':''}>${y}</option>`).join(''); }
+  });
+  // Semestre actual
+  const sel = document.getElementById('iva-semestre');
+  if (sel) sel.value = new Date().getMonth() < 6 ? '1' : '2';
+  loadPreop();
+}
+
+// ── PREOPERATIVOS ──
+async function loadPreop() {
+  const r = await api('GET', '/api/contabilidad/preoperativos');
+  const items = r || [];
+  const total = items.reduce((a,i)=>a+parseFloat(i.monto),0);
+  const conFactura = items.filter(i=>i.tiene_factura).reduce((a,i)=>a+parseFloat(i.monto),0);
+  const CAT_L = {adecuacion:'Adecuación',equipos:'Equipos',licencias:'Licencias',publicidad:'Publicidad',inventario_inicial:'Inv. inicial',otros:'Otros'};
+  document.getElementById('preop-kpis').innerHTML = [
+    ['Total invertido','$'+total.toFixed(2),'var(--info)'],
+    ['Con factura','$'+conFactura.toFixed(2),'var(--ok)'],
+    ['Sin factura','$'+(total-conFactura).toFixed(2),'var(--warn)']
+  ].map(([l,v,c])=>`<div class="card" style="text-align:center;border-top:3px solid ${c}">
+    <div style="font-size:11px;color:var(--t3);margin-bottom:6px">${l}</div>
+    <div style="font-size:22px;font-weight:700;color:${c}">${v}</div></div>`).join('');
+  if (!items.length) { document.getElementById('preop-tabla').innerHTML='<div class="empty">Sin gastos preoperativos registrados</div>'; return; }
+  document.getElementById('preop-tabla').innerHTML = `<table><thead><tr><th>Fecha</th><th>Descripción</th><th>Categoría</th><th>Proveedor</th><th>Factura</th><th>Monto</th><th></th></tr></thead><tbody>${
+    items.map(i=>`<tr>
+      <td style="font-size:12px;color:var(--t3)">${new Date(i.fecha).toLocaleDateString('es-EC')}</td>
+      <td><div style="font-weight:500;font-size:12px">${i.descripcion}</div>${i.notas?`<div style="font-size:11px;color:var(--t3)">${i.notas}</div>`:''}</td>
+      <td><span class="badge b-blue" style="font-size:10px">${CAT_L[i.categoria]||i.categoria}</span></td>
+      <td style="font-size:12px">${i.proveedor||'—'}</td>
+      <td style="font-size:11px;font-family:monospace">${i.numero_factura||'—'} ${i.tiene_factura?'<span class="badge b-green" style="font-size:9px">✓</span>':'<span class="badge b-amber" style="font-size:9px">S/F</span>'}</td>
+      <td style="font-weight:700">$${parseFloat(i.monto).toFixed(2)}</td>
+      <td><button class="btn btn-sm" style="background:var(--red-bg);color:var(--red)" onclick="eliminarPreop('${i.id}')">🗑</button></td></tr>`).join('')
+  }</tbody></table>`;
+}
+
+async function guardarPreop() {
+  const desc = document.getElementById('preop-desc').value;
+  const monto = parseFloat(document.getElementById('preop-monto').value)||0;
+  const fecha = document.getElementById('preop-fecha').value;
+  if (!desc||!monto||!fecha) { alert('Descripción, monto y fecha son obligatorios'); return; }
+  const r = await api('POST', '/api/contabilidad/preoperativos', {
+    descripcion:desc, categoria:document.getElementById('preop-cat').value,
+    fecha, monto, proveedor:document.getElementById('preop-proveedor').value,
+    numero_factura:document.getElementById('preop-factura').value,
+    tiene_factura:document.getElementById('preop-tiene-factura').checked,
+    notas:document.getElementById('preop-notas').value
+  });
+  if (r?.id) { closeModal('modal-nuevo-preop'); loadPreop(); }
+  else alert(r?.error||'Error al guardar');
+}
+
+async function eliminarPreop(id) {
+  if (!confirm('¿Eliminar este gasto preoperativo?')) return;
+  await api('DELETE', `/api/contabilidad/preoperativos/${id}`);
+  loadPreop();
+}
+
+// ── ACTIVOS FIJOS ──
+async function loadActivos() {
+  const r = await api('GET', '/api/activos');
+  const items = r || [];
+  const totalValor = items.reduce((a,i)=>a+parseFloat(i.valor_adquisicion),0);
+  const totalDep = items.reduce((a,i)=>a+parseFloat(i.dep_acumulada||0),0);
+  const totalLibros = items.reduce((a,i)=>a+parseFloat(i.valor_libros||0),0);
+  const depMes = items.reduce((a,i)=>a+(parseFloat(i.dep_anual||0)/12),0);
+  document.getElementById('activos-kpis').innerHTML = [
+    ['Valor adquisición','$'+totalValor.toFixed(2),'var(--info)'],
+    ['Valor en libros','$'+totalLibros.toFixed(2),'var(--ok)'],
+    ['Dep. mensual','$'+depMes.toFixed(2),'var(--warn)']
+  ].map(([l,v,c])=>`<div class="card" style="text-align:center;border-top:3px solid ${c}">
+    <div style="font-size:11px;color:var(--t3);margin-bottom:6px">${l}</div>
+    <div style="font-size:22px;font-weight:700;color:${c}">${v}</div></div>`).join('');
+  if (!items.length) { document.getElementById('activos-tabla').innerHTML='<div class="empty">Sin activos fijos registrados</div>'; return; }
+  const CAT_L = {equipo:'Equipo',herramienta:'Herramienta',vehiculo:'Vehículo',mueble:'Mueble',electronico:'Electrónico',mejora:'Mejora local'};
+  document.getElementById('activos-tabla').innerHTML = `<table><thead><tr><th>Activo</th><th>Categoría</th><th>Fecha adq.</th><th>Valor adq.</th><th>Dep. anual</th><th>Dep. acum.</th><th>Valor libros</th><th></th></tr></thead><tbody>${
+    items.map(i=>`<tr>
+      <td><div style="font-weight:500;font-size:12px">${i.nombre}</div>${i.descripcion?`<div style="font-size:11px;color:var(--t3)">${i.descripcion}</div>`:''}</td>
+      <td><span class="badge b-blue" style="font-size:10px">${CAT_L[i.categoria]||i.categoria}</span></td>
+      <td style="font-size:12px;color:var(--t3)">${new Date(i.fecha_adquisicion).toLocaleDateString('es-EC')}</td>
+      <td style="font-weight:600">$${parseFloat(i.valor_adquisicion).toFixed(2)}</td>
+      <td style="font-size:12px">$${parseFloat(i.dep_anual||0).toFixed(2)}</td>
+      <td style="font-size:12px;color:var(--warn)">$${parseFloat(i.dep_acumulada||0).toFixed(2)}</td>
+      <td style="font-weight:700;color:var(--ok)">$${parseFloat(i.valor_libros||0).toFixed(2)}</td>
+      <td><button class="btn btn-sm" style="background:var(--red-bg);color:var(--red)" onclick="eliminarActivo('${i.id}')">🗑</button></td></tr>`).join('')
+  }</tbody></table>`;
+}
+
+async function guardarActivo() {
+  const nombre = document.getElementById('activo-nombre').value;
+  const valor = parseFloat(document.getElementById('activo-valor').value)||0;
+  const fecha = document.getElementById('activo-fecha').value;
+  if (!nombre||!valor||!fecha) { alert('Nombre, valor y fecha son obligatorios'); return; }
+  const r = await api('POST', '/api/activos', {
+    nombre, descripcion:document.getElementById('activo-desc').value,
+    categoria:document.getElementById('activo-cat').value,
+    fecha_adquisicion:fecha, valor_adquisicion:valor,
+    vida_util_anios:parseInt(document.getElementById('activo-vida').value)||5,
+    valor_residual:parseFloat(document.getElementById('activo-residual').value)||0
+  });
+  if (r?.id) { closeModal('modal-nuevo-activo'); loadActivos(); }
+  else alert(r?.error||'Error al guardar');
+}
+
+async function eliminarActivo(id) {
+  if (!confirm('¿Dar de baja este activo?')) return;
+  await api('DELETE', `/api/activos/${id}`);
+  loadActivos();
+}
+
+// ── NÓMINA ──
+let todosEmpleados = [];
+
+async function loadNomina() {
+  const [empleados, roles] = await Promise.all([
+    api('GET', '/api/nomina/empleados'),
+    api('GET', '/api/nomina/roles')
+  ]);
+  todosEmpleados = empleados || [];
+  const totalSueldos = todosEmpleados.reduce((a,e)=>a+parseFloat(e.sueldo_base),0);
+  const iessPatronal = totalSueldos * 0.1215;
+  const costoTotal = totalSueldos + iessPatronal + (totalSueldos/12) + (460/12) + (totalSueldos/24);
+  document.getElementById('nomina-kpis').innerHTML = [
+    ['Sueldo(s) base','$'+totalSueldos.toFixed(2),'var(--info)'],
+    ['IESS patronal','$'+iessPatronal.toFixed(2),'var(--warn)'],
+    ['Costo real/mes','$'+costoTotal.toFixed(2),'var(--red)']
+  ].map(([l,v,c])=>`<div class="card" style="text-align:center;border-top:3px solid ${c}">
+    <div style="font-size:11px;color:var(--t3);margin-bottom:6px">${l}</div>
+    <div style="font-size:22px;font-weight:700;color:${c}">${v}</div></div>`).join('');
+  // Empleados
+  document.getElementById('empleados-lista').innerHTML = !todosEmpleados.length
+    ? '<div class="empty">Sin empleados registrados</div>'
+    : todosEmpleados.map(e=>`<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--verde-l);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--verde-t);font-size:13px">${e.empleado_nombre.split(' ').map(n=>n[0]).join('').substring(0,2)}</div>
+        <div style="flex:1"><div style="font-weight:600;font-size:13px">${e.empleado_nombre}</div><div style="font-size:11px;color:var(--t3)">${e.cargo||'—'} · CI: ${e.cedula||'—'}</div></div>
+        <div style="text-align:right"><div style="font-weight:700;color:var(--verde)">$${parseFloat(e.sueldo_base).toFixed(2)}</div><div style="font-size:10px;color:var(--t3)">desde ${new Date(e.fecha_ingreso).toLocaleDateString('es-EC')}</div></div>
+      </div>`).join('');
+  // Poblar selector de empleados en modal
+  const sel = document.getElementById('rol-empleado');
+  if (sel) sel.innerHTML = '<option value="">Seleccionar...</option>' + todosEmpleados.map(e=>`<option value="${e.id}">${e.empleado_nombre}</option>`).join('');
+  // Roles
+  const rolesData = roles || [];
+  document.getElementById('roles-tabla').innerHTML = !rolesData.length
+    ? '<div class="empty">Sin roles de pago generados</div>'
+    : `<table><thead><tr><th>Período</th><th>Empleado</th><th>Sueldo</th><th>H. Extra</th><th>IESS Pers.</th><th>Líquido</th><th>Estado</th><th></th></tr></thead><tbody>${
+        rolesData.map(r=>`<tr>
+          <td style="font-family:monospace;font-size:12px">${r.periodo}</td>
+          <td style="font-size:12px;font-weight:500">${r.empleado_nombre}</td>
+          <td>$${parseFloat(r.sueldo_base).toFixed(2)}</td>
+          <td style="font-size:12px">$${parseFloat(r.valor_horas_extra||0).toFixed(2)}</td>
+          <td style="font-size:12px;color:var(--warn)">-$${parseFloat(r.iess_personal||0).toFixed(2)}</td>
+          <td style="font-weight:700;color:var(--verde)">$${parseFloat(r.liquido_pagar).toFixed(2)}</td>
+          <td>${r.pagado?'<span class="badge b-green">✓ Pagado</span>':'<span class="badge b-amber">Pendiente</span>'}</td>
+          <td>${!r.pagado?`<button class="btn btn-primary btn-sm" onclick="pagarRol('${r.id}')">Pagar</button>`:'—'}</td></tr>`).join('')
+      }</tbody></table>`;
+}
+
+async function guardarEmpleado() {
+  const nombre = document.getElementById('emp-nombre').value;
+  const fecha = document.getElementById('emp-fecha').value;
+  const sueldo = parseFloat(document.getElementById('emp-sueldo').value)||0;
+  if (!nombre||!fecha||!sueldo) { alert('Nombre, fecha y sueldo son obligatorios'); return; }
+  const r = await api('POST', '/api/nomina/empleados', {
+    empleado_nombre:nombre, cedula:document.getElementById('emp-cedula').value,
+    cargo:document.getElementById('emp-cargo').value, fecha_ingreso:fecha, sueldo_base:sueldo
+  });
+  if (r?.id) { closeModal('modal-nuevo-empleado'); loadNomina(); }
+  else alert(r?.error||'Error al guardar');
+}
+
+function previsualizarRol() {
+  const empId = document.getElementById('rol-empleado').value;
+  const emp = todosEmpleados.find(e=>e.id===empId);
+  if (!emp) { alert('Selecciona un empleado'); return; }
+  const sueldo = parseFloat(emp.sueldo_base);
+  const horas = parseFloat(document.getElementById('rol-horas').value)||0;
+  const valorHE = horas * (sueldo/240) * 1.5;
+  const total = sueldo + valorHE;
+  const iessP = total * 0.0945;
+  const iessP2 = total * 0.1215;
+  const d13 = total / 12;
+  const d14 = 460 / 12;
+  const vac = total / 24;
+  const liquido = total - iessP;
+  const costoEmp = total + iessP2 + d13 + d14 + vac;
+  document.getElementById('rol-preview').style.display = 'block';
+  document.getElementById('rol-preview').innerHTML = `
+    <div style="font-weight:600;margin-bottom:8px;color:var(--verde)">Vista previa — ${emp.empleado_nombre}</div>
+    ${[['Sueldo base','$'+sueldo.toFixed(2),''],['Horas extra ('+horas+'h)','$'+valorHE.toFixed(2),''],['Total ingresos','$'+total.toFixed(2),'font-weight:600'],['IESS personal (9.45%)','- $'+iessP.toFixed(2),'color:var(--red)'],['Líquido a pagar','$'+liquido.toFixed(2),'font-weight:700;color:var(--verde)'],['— Costo real para el taller —','','border-top:1px solid var(--border);padding-top:6px'],['IESS patronal (12.15%)','$'+iessP2.toFixed(2),'color:var(--warn)'],['Décimo tercero (prov.)','$'+d13.toFixed(2),''],['Décimo cuarto (prov.)','$'+d14.toFixed(2),''],['Vacaciones (prov.)','$'+vac.toFixed(2),''],['Costo total/mes','$'+costoEmp.toFixed(2),'font-weight:700;color:var(--red)']].map(([k,v,s])=>`
+      <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;${s}"><span style="color:var(--t2)">${k}</span><span>${v}</span></div>`).join('')}`;
+}
+
+async function generarRol() {
+  const empId = document.getElementById('rol-empleado').value;
+  const periodo = document.getElementById('rol-periodo').value;
+  const horas = parseFloat(document.getElementById('rol-horas').value)||0;
+  if (!empId||!periodo) { alert('Selecciona empleado y período'); return; }
+  const r = await api('POST', '/api/nomina/roles/generar', { empleado_id:empId, periodo, horas_extra:horas });
+  if (r?.id) { closeModal('modal-generar-rol'); loadNomina(); }
+  else alert(r?.error||'Error al generar rol');
+}
+
+async function pagarRol(id) {
+  if (!confirm('¿Marcar este rol como pagado? Se registrará el gasto en Finanzas.')) return;
+  const r = await api('PATCH', `/api/nomina/ro 
 // Iniciar cotizador al cargar
 window.addEventListener('load', () => {
   if (TOKEN) calcCotizador();
