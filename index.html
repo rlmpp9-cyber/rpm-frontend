@@ -531,7 +531,14 @@ textarea.form-input{resize:vertical}
     <div class="modal-body">
       <div id="vehiculo-error" class="alert alert-danger hidden"></div>
       <input type="hidden" id="veh-edit-id">
-      <div class="form-group"><label class="form-label">Cliente *</label><select class="form-select" id="veh-cliente"><option value="">Seleccionar...</option></select></div>
+      <div class="form-group">
+  <label class="form-label">Cliente *</label>
+  <div style="position:relative">
+    <input class="form-input" id="veh-cliente-buscar" placeholder="Buscar cliente..." oninput="buscarClienteVeh(this.value)" autocomplete="off">
+    <input type="hidden" id="veh-cliente">
+    <div id="veh-cliente-resultados" style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:6px;max-height:180px;overflow-y:auto;z-index:300;display:none;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
+  </div>
+</div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Placa *</label><input class="form-input" id="veh-placa" oninput="this.value=this.value.toUpperCase()"></div>
         <div class="form-group"><label class="form-label">Año *</label><input class="form-input" type="number" id="veh-anio" value="2024" min="1950" max="2026"></div>
@@ -1726,7 +1733,7 @@ function editarVehiculo(id) {
   document.getElementById('veh-tipo-color').value = v.tipo_color||'claro';
   document.getElementById('veh-km').value = v.kilometraje||0;
   document.getElementById('veh-cliente').value = v.cliente_id||'';
-  document.getElementById('veh-cliente').disabled = false;
+  document.getElementById('veh-cliente-buscar').value = v.cliente_nombre ? `${v.cliente_nombre} · ${v.cliente_id_num||''}` : '';
   openModal('modal-nuevo-vehiculo');
 }
 
@@ -2555,6 +2562,31 @@ async function guardarFacturaSRI() {
     closeModal('modal-factura-sri-compra');
     resetModalSRI();
   }
+}
+  function buscarClienteVeh(q) {
+  const res = document.getElementById('veh-cliente-resultados');
+  document.getElementById('veh-cliente').value = '';
+  if (!q || q.length < 1) { res.style.display = 'none'; return; }
+  const filtrados = todosClientes.filter(c =>
+    c.razon_social.toLowerCase().includes(q.toLowerCase()) ||
+    c.numero_id.includes(q) ||
+    c.telefono?.includes(q)
+  ).slice(0, 8);
+  if (!filtrados.length) { res.style.display = 'none'; return; }
+  res.style.display = 'block';
+  res.innerHTML = filtrados.map(c => `
+    <div onclick="seleccionarClienteVeh('${c.id}','${c.razon_social.replace(/'/g,"\\'")}','${c.numero_id}')"
+      style="padding:8px 12px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--border)"
+      onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background=''">
+      <div style="font-weight:500">${c.razon_social}</div>
+      <div style="font-size:11px;color:var(--t3)">${c.numero_id} · ${c.telefono||''}</div>
+    </div>`).join('');
+}
+
+function seleccionarClienteVeh(id, nombre, numeroId) {
+  document.getElementById('veh-cliente').value = id;
+  document.getElementById('veh-cliente-buscar').value = `${nombre} · ${numeroId}`;
+  document.getElementById('veh-cliente-resultados').style.display = 'none';
 }
  // ═══════════ CONTABILIDAD ═══════════
 function setCTab(tab) {
