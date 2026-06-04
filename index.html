@@ -622,12 +622,13 @@ textarea.form-input{resize:vertical}
   <div class="modal modal-lg">
     <div class="modal-head">
       <div>
-        <div class="modal-title">🔍 Registrar factura del SRI</div>
-        <div style="font-size:12px;color:var(--t3);margin-top:2px">Facturas de compra a proveedores o facturas de venta propias</div>
+        <div class="modal-title">🔍 Registrar factura</div>
+        <div style="font-size:12px;color:var(--t3);margin-top:2px">Compra a proveedores o venta propia</div>
       </div>
-      <button class="close-btn" onclick="closeModal('modal-factura-sri-compra')">×</button>
+      <button class="close-btn" onclick="closeModal('modal-factura-sri-compra');resetModalSRI()">×</button>
     </div>
     <div class="modal-body">
+
       <!-- Tipo -->
       <div style="display:flex;gap:8px;margin-bottom:14px">
         <div onclick="setTipoFacturaSRI('compra')" id="sri-tipo-compra" style="flex:1;text-align:center;padding:10px;border:1.5px solid var(--verde);border-radius:8px;cursor:pointer;background:var(--verde-l);font-size:12px;font-weight:600;color:var(--verde-t)">🛒 Factura de compra<br><small style="font-weight:400;opacity:.7">Proveedor → mi inventario</small></div>
@@ -635,101 +636,155 @@ textarea.form-input{resize:vertical}
       </div>
       <input type="hidden" id="sri-tipo" value="compra">
 
-      <!-- Clave de acceso -->
-      <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:14px">
-        <div style="flex:1">
-          <label class="form-label">Clave de acceso SRI (49 dígitos) *</label>
-          <input class="form-input" id="sri-clave" placeholder="2304202601110485079500110010010000000012345678914" maxlength="49" style="font-family:monospace;font-size:12px">
+      <!-- Métodos de obtención -->
+      <div style="background:var(--hover);border-radius:8px;padding:12px;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Obtener datos automáticamente (opcional)</div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <div onclick="setSRIMetodo('clave')" id="sri-met-clave" style="flex:1;text-align:center;padding:8px;border:1.5px solid var(--verde);border-radius:6px;cursor:pointer;background:var(--verde-l);font-size:11px;font-weight:600;color:var(--verde-t)">🔑 Clave de acceso SRI</div>
+          <div onclick="setSRIMetodo('pdf')" id="sri-met-pdf" style="flex:1;text-align:center;padding:8px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;color:var(--t2)">📄 Subir PDF o imagen</div>
+          <div onclick="setSRIMetodo('manual')" id="sri-met-manual" style="flex:1;text-align:center;padding:8px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;color:var(--t2)">✏️ Ingreso manual</div>
         </div>
-        <button class="btn btn-primary" onclick="consultarSRI()">🔍 Consultar SRI</button>
-      </div>
-      <div id="sri-resultado" class="hidden">
-        <div class="alert alert-success" id="sri-ok-msg" style="margin-bottom:12px"></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px" id="sri-datos-grid"></div>
-      </div>
-      <div id="sri-error-msg" class="alert alert-danger hidden"></div>
-<div id="sri-pdf-section" class="hidden" style="margin-top:10px">
-  <div class="alert alert-warn" style="margin-bottom:10px">⚠ No se pudo consultar el SRI. Puedes subir el PDF o imagen de la factura para extraer los datos automáticamente.</div>
-  <div style="border:2px dashed var(--border);border-radius:8px;padding:20px;text-align:center;cursor:pointer;background:var(--hover)" onclick="document.getElementById('pdf-factura-input').click()">
-    <div style="font-size:24px;margin-bottom:6px">📄</div>
-    <div style="font-size:13px;font-weight:600;color:var(--verde)">Subir PDF o imagen de la factura</div>
-    <div style="font-size:11px;color:var(--t3);margin-top:4px">PDF, JPG o PNG · El sistema extrae los datos automáticamente con IA</div>
-  </div>
-  <input type="file" id="pdf-factura-input" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="procesarPDFFactura(this)">
-  <div id="pdf-procesando" class="hidden" style="text-align:center;padding:16px">
-    <div class="spinner" style="margin:0 auto 8px"></div>
-    <div style="font-size:12px;color:var(--t3)">Extrayendo datos de la factura con IA...</div>
-  </div>
-</div>
 
-      <!-- Registro manual -->
-      <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Datos de la factura</div>
+        <!-- Clave SRI -->
+        <div id="sri-seccion-clave">
+          <div style="display:flex;gap:8px;align-items:flex-end">
+            <div style="flex:1">
+              <label class="form-label">Clave de acceso (49 dígitos)</label>
+              <input class="form-input" id="sri-clave" placeholder="2905202601010138055800120015010001683320000000011" maxlength="49" style="font-family:monospace;font-size:12px">
+            </div>
+            <button class="btn btn-primary" onclick="consultarSRI()">🔍 Consultar</button>
+          </div>
+        </div>
+
+        <!-- PDF -->
+        <div id="sri-seccion-pdf" class="hidden">
+          <div style="border:2px dashed var(--border);border-radius:8px;padding:16px;text-align:center;cursor:pointer;background:#fff" onclick="document.getElementById('pdf-factura-input').click()">
+            <div style="font-size:20px;margin-bottom:4px">📄</div>
+            <div style="font-size:12px;font-weight:600;color:var(--verde)">Clic para subir PDF o imagen</div>
+            <div style="font-size:10px;color:var(--t3);margin-top:2px">PDF, JPG o PNG</div>
+          </div>
+          <input type="file" id="pdf-factura-input" accept=".pdf,.jpg,.jpeg,.png" class="hidden" onchange="procesarPDFFactura(this)">
+          <div id="pdf-procesando" class="hidden" style="text-align:center;padding:12px">
+            <div class="spinner" style="margin:0 auto 6px"></div>
+            <div style="font-size:11px;color:var(--t3)">Procesando...</div>
+          </div>
+        </div>
+
+        <!-- Manual -->
+        <div id="sri-seccion-manual" class="hidden">
+          <div style="font-size:11px;color:var(--t3)">Completa los campos de la factura manualmente abajo.</div>
+        </div>
+
+        <div id="sri-ok-msg" class="alert alert-success hidden" style="margin-top:8px;margin-bottom:0"></div>
+        <div id="sri-error-msg" class="alert alert-danger hidden" style="margin-top:8px;margin-bottom:0"></div>
+      </div>
+
+      <!-- Datos de la factura (siempre editables) -->
+      <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Datos de la factura *</div>
       <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">N° Factura</label>
-          <input class="form-input" id="sri-num-factura" placeholder="001-001-000000001">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Fecha de emisión</label>
-          <input class="form-input" type="date" id="sri-fecha">
-        </div>
+        <div class="form-group"><label class="form-label">N° Factura *</label><input class="form-input" id="sri-num-factura" placeholder="001-001-000000001"></div>
+        <div class="form-group"><label class="form-label">Fecha de emisión *</label><input class="form-input" type="date" id="sri-fecha"></div>
       </div>
       <div class="form-row" id="sri-proveedor-row">
-        <div class="form-group">
-          <label class="form-label">Proveedor / Emisor</label>
-          <input class="form-input" id="sri-proveedor" placeholder="Nombre del proveedor">
-        </div>
-        <div class="form-group">
-          <label class="form-label">RUC del proveedor</label>
-          <input class="form-input" id="sri-ruc-prov" placeholder="1234567890001">
-        </div>
+        <div class="form-group"><label class="form-label">Proveedor / Emisor</label><input class="form-input" id="sri-proveedor" placeholder="Nombre del proveedor"></div>
+        <div class="form-group"><label class="form-label">RUC del proveedor</label><input class="form-input" id="sri-ruc-prov" placeholder="1234567890001"></div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Total de la factura $</label>
-        <input class="form-input" type="number" id="sri-total" min="0" step="0.01" placeholder="0.00" style="max-width:200px">
-      </div>
+      <div class="form-group" style="max-width:200px"><label class="form-label">Total de la factura $</label><input class="form-input" type="number" id="sri-total" min="0" step="0.01" placeholder="0.00"></div>
 
-      <!-- Productos a ingresar al inventario (solo compra) -->
+      <!-- Productos (solo compra) -->
       <div id="sri-productos-section">
         <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;margin-top:4px">Productos a ingresar al inventario</div>
+
+        <!-- Items extraídos automáticamente -->
+        <div id="sri-items-extraidos"></div>
+
+        <!-- Lista de items agregados -->
         <div id="sri-prod-list" style="margin-bottom:10px"></div>
-        <div style="background:var(--hover);border-radius:8px;padding:10px;display:grid;grid-template-columns:2fr 0.9fr 0.7fr 0.8fr auto;gap:8px;align-items:end">
-          <div>
-            <div style="font-size:10px;color:var(--t3);margin-bottom:3px">Producto del inventario</div>
-            <select class="form-select" id="sri-prod-sel" style="font-size:12px" onchange="autoFillCategoriaSRI(this)">
-              <option value="">Seleccionar existente o nuevo →</option>
-            </select>
+
+        <!-- Formulario agregar item -->
+        <div style="background:var(--hover);border-radius:8px;padding:10px">
+          <div style="display:grid;grid-template-columns:2fr 0.9fr 0.7fr 0.8fr auto;gap:8px;align-items:end">
+            <div>
+              <div style="font-size:10px;color:var(--t3);margin-bottom:3px">Producto del inventario</div>
+              <select class="form-select" id="sri-prod-sel" style="font-size:12px" onchange="autoFillCategoriaSRI(this)">
+                <option value="">Seleccionar existente...</option>
+              </select>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--t3);margin-bottom:3px">Categoría</div>
+              <select class="form-select" id="sri-prod-cat" style="font-size:12px">
+                <option value="tintes_pinturas">Tintes y pinturas</option>
+                <option value="abrasivos">Abrasivos</option>
+                <option value="masillas">Masillas</option>
+                <option value="tiner_fondos">Tiner y fondos</option>
+                <option value="insumos_varios">Insumos varios</option>
+                <option value="repuestos">Repuestos</option>
+                <option value="herramientas">Herramientas</option>
+                <option value="datailing">Datailing</option>
+                <option value="limpieza_papeleria">Limpieza y papelería</option>
+                <option value="otros">Otros</option>
+              </select>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--t3);margin-bottom:3px">Cantidad</div>
+              <input class="form-input" id="sri-prod-cant" type="number" min="0.01" step="0.01" value="1" style="font-size:12px">
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--t3);margin-bottom:3px">P. costo $</div>
+              <input class="form-input" id="sri-prod-precio" type="number" min="0" step="0.01" placeholder="0.00" style="font-size:12px">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="agregarProdSRI()">+ Add</button>
           </div>
-          <div>
-            <div style="font-size:10px;color:var(--t3);margin-bottom:3px">Categoría / Tipo</div>
-            <select class="form-select" id="sri-prod-cat" style="font-size:12px">
-              <option value="tintes_pinturas">Tintes y pinturas</option>
-              <option value="abrasivos">Abrasivos</option>
-              <option value="masillas">Masillas</option>
-              <option value="tiner_fondos">Tiner y fondos</option>
-              <option value="insumos_varios">Insumos varios</option>
-              <option value="repuestos">Repuestos</option>
-              <option value="herramientas">Herramientas</option>
-              <option value="datailing">Datailing</option>
-              <option value="limpieza_papeleria">Limpieza y papelería</option>
-              <option value="otros">Otros</option>
-            </select>
+
+          <!-- Mini formulario crear producto nuevo inline -->
+          <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+            <span style="font-size:11px;color:var(--t3)">¿Producto nuevo?</span>
+            <button class="btn btn-secondary btn-sm" onclick="toggleNuevoProdSRI()">+ Crear producto nuevo</button>
           </div>
-          <div>
-            <div style="font-size:10px;color:var(--t3);margin-bottom:3px">Cantidad</div>
-            <input class="form-input" id="sri-prod-cant" type="number" min="0.01" step="0.01" value="1" style="font-size:12px">
+          <div id="sri-nuevo-prod-form" class="hidden" style="margin-top:10px;padding:10px;background:#fff;border-radius:8px;border:1px solid var(--border)">
+            <div style="font-size:11px;font-weight:600;color:var(--verde);margin-bottom:8px">Nuevo producto</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+              <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Nombre *</div><input class="form-input" id="sri-np-nombre" style="font-size:12px" placeholder="Nombre del producto"></div>
+              <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Categoría</div>
+                <select class="form-select" id="sri-np-cat" style="font-size:12px" onchange="autoCodigoNuevoProdSRI(this.value)">
+                  <option value="tintes_pinturas">Tintes y pinturas</option>
+                  <option value="abrasivos">Abrasivos</option>
+                  <option value="masillas">Masillas</option>
+                  <option value="tiner_fondos">Tiner y fondos</option>
+                  <option value="insumos_varios">Insumos varios</option>
+                  <option value="repuestos">Repuestos</option>
+                  <option value="herramientas">Herramientas</option>
+                  <option value="datailing">Datailing</option>
+                  <option value="limpieza_papeleria">Limpieza y papelería</option>
+                  <option value="otros">Otros</option>
+                </select>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+              <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Código (auto)</div><input class="form-input" id="sri-np-codigo" style="font-size:12px" placeholder="Auto"></div>
+              <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Unidad</div>
+                <select class="form-select" id="sri-np-unidad" style="font-size:12px">
+                  <option value="unidad">Unidad</option>
+                  <option value="litro">Litro</option>
+                  <option value="kg">Kg</option>
+                  <option value="galon">Galón</option>
+                  <option value="pliego">Pliego</option>
+                </select>
+              </div>
+              <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Stock mínimo</div><input class="form-input" id="sri-np-stock-min" type="number" value="0" style="font-size:12px"></div>
+            </div>
+            <div id="sri-np-error" class="alert alert-danger hidden" style="margin-bottom:8px"></div>
+            <div style="display:flex;gap:8px;justify-content:flex-end">
+              <button class="btn btn-secondary btn-sm" onclick="toggleNuevoProdSRI()">Cancelar</button>
+              <button class="btn btn-primary btn-sm" onclick="crearYAgregarProdSRI()">✓ Crear y agregar</button>
+            </div>
           </div>
-          <div>
-            <div style="font-size:10px;color:var(--t3);margin-bottom:3px">P. costo $</div>
-            <input class="form-input" id="sri-prod-precio" type="number" min="0" step="0.01" placeholder="0.00" style="font-size:12px">
-          </div>
-          <button class="btn btn-primary btn-sm" onclick="agregarProdSRI()">+ Add</button>
         </div>
-        <div style="font-size:11px;color:var(--t3);margin-top:6px">💡 Al seleccionar un producto existente, la categoría se carga automáticamente. Puedes cambiarla antes de agregar.</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:6px">💡 Selecciona un producto existente o crea uno nuevo directamente aquí.</div>
       </div>
     </div>
     <div class="modal-foot">
-      <button class="btn btn-secondary" onclick="closeModal('modal-factura-sri-compra')">Cancelar</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-factura-sri-compra');resetModalSRI()">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarFacturaSRI()">💾 Registrar factura</button>
     </div>
   </div>
