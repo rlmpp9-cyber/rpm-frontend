@@ -2827,7 +2827,9 @@ async function guardarFacturaSRI() {
       await api('POST', '/api/finanzas/gastos', {
         tipo: 'variable', categoria: 'materiales',
         descripcion: `Factura ${numFact} - ${proveedor || 'Proveedor'}`,
-        monto: total, fecha
+        monto: total, fecha,
+        proveedor: proveedor||null,
+        numero_factura: numFact||null
       });
     }
     closeModal('modal-factura-sri-compra');
@@ -2991,7 +2993,9 @@ async function filtrarFacturasCompra() {
     else if (g.descripcion?.startsWith('Factura ')) tipo_factura = 'compra';
     items.push({
       id: g.id, fecha: g.fecha, tipo_factura,
-      descripcion: g.descripcion, proveedor: '—', numero_factura: '—',
+      descripcion: g.descripcion,
+      proveedor: g.proveedor||'—',
+      numero_factura: g.numero_factura||'—',
       total: parseFloat(g.monto), origen: 'finanzas'
     });
   });
