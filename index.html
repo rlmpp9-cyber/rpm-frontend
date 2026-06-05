@@ -170,6 +170,7 @@ textarea.form-input{resize:vertical}
       <div class="nav-item" onclick="showPage('clientes')">👤 Clientes</div>
       <div class="nav-item" onclick="showPage('vehiculos')">🚗 Vehículos</div>
       <div class="nav-sec">Administración</div>
+      <div class="nav-item" onclick="showPage('facturas_compra')">📥 Facturas</div>
       <div class="nav-item" onclick="showPage('inventario')">📦 Inventario</div>
       <div class="nav-item" onclick="showPage('kardex')">📋 Kardex</div>
       <div class="nav-item" onclick="showPage('facturacion')">📄 Facturación SRI</div>
@@ -343,7 +344,6 @@ textarea.form-input{resize:vertical}
       <div class="sec-header">
         <div><div class="sec-title">Inventario</div><div class="sec-sub" id="inv-sub">0 productos</div></div>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-secondary" onclick="openModal('modal-factura-sri-compra')">🔍 Factura SRI</button>
           <button class="btn btn-secondary" onclick="openModal('modal-compra')">🛒 Registrar compra</button>
           <button class="btn btn-primary" onclick="openModal('modal-nuevo-producto')">+ Nuevo producto</button>
         </div>
@@ -366,6 +366,36 @@ textarea.form-input{resize:vertical}
       <div class="card" id="fact-tabla-wrap">
         <div style="font-weight:600;margin-bottom:14px;font-size:13px">Comprobantes emitidos</div>
         <div class="table-wrap" id="fact-tabla"></div>
+      </div>
+    </div>
+    <div class="page hidden" id="page-facturas_compra">
+      <div class="sec-header">
+        <div><div class="sec-title">Facturas</div><div class="sec-sub">Registro único de todas las facturas recibidas</div></div>
+        <button class="btn btn-primary" onclick="openModal('modal-factura-sri-compra');resetModalSRI()">+ Registrar factura</button>
+      </div>
+      <!-- Filtros -->
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:10px;align-items:end">
+          <div><label class="form-label">Buscar</label><input class="form-input" id="fc-buscar" placeholder="Proveedor, N° factura..." oninput="filtrarFacturasCompra()"></div>
+          <div><label class="form-label">Tipo</label>
+            <select class="form-select" id="fc-tipo" onchange="filtrarFacturasCompra()">
+              <option value="">Todos</option>
+              <option value="compra">Compra productos</option>
+              <option value="servicio">Servicio externo</option>
+              <option value="gasto">Gasto taller</option>
+              <option value="venta">Venta emitida</option>
+            </select>
+          </div>
+          <div><label class="form-label">Desde</label><input class="form-input" type="date" id="fc-desde" onchange="filtrarFacturasCompra()"></div>
+          <div><label class="form-label">Hasta</label><input class="form-input" type="date" id="fc-hasta" onchange="filtrarFacturasCompra()"></div>
+          <button class="btn btn-secondary" onclick="limpiarFiltrosFC()">✕</button>
+        </div>
+      </div>
+      <!-- KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px" id="fc-kpis"></div>
+      <!-- Tabla -->
+      <div class="card">
+        <div class="table-wrap" id="fc-tabla"></div>
       </div>
     </div>
     <div class="page hidden" id="page-kardex">
@@ -763,7 +793,8 @@ textarea.form-input{resize:vertical}
       <div style="display:flex;gap:8px;margin-bottom:14px">
         <div onclick="setTipoFacturaSRI('compra')" id="sri-tipo-compra" style="flex:1;text-align:center;padding:10px;border:1.5px solid var(--verde);border-radius:8px;cursor:pointer;background:var(--verde-l);font-size:12px;font-weight:600;color:var(--verde-t)">🛒 Factura de compra<br><small style="font-weight:400;opacity:.7">Proveedor → mi inventario</small></div>
        <div onclick="setTipoFacturaSRI('venta')" id="sri-tipo-venta" style="flex:1;text-align:center;padding:10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--t2)">📄 Factura de venta<br><small style="font-weight:400;opacity:.7">Mis facturas emitidas al SRI</small></div>
-<div onclick="setTipoFacturaSRI('servicio')" id="sri-tipo-servicio" style="flex:1;text-align:center;padding:10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--t2)">🔧 Servicio externo<br><small style="font-weight:400;opacity:.7">Tapizado, mecánica, etc.</small></div>
+<div onclick="setTipoFacturaSRI('servicio')" id="sri-tipo-servicio" style="flex:1;text-align:center;padding:10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--t2)">🔧 Servicio externo<br><small style="font-weight:400;opacity:.7">Cobrable al cliente</small></div>
+        <div onclick="setTipoFacturaSRI('gasto')" id="sri-tipo-gasto" style="flex:1;text-align:center;padding:10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--t2)">💸 Gasto del taller<br><small style="font-weight:400;opacity:.7">Adecuaciones, servicios</small></div>
       </div>
       <input type="hidden" id="sri-tipo" value="compra">
 
@@ -844,6 +875,36 @@ textarea.form-input{resize:vertical}
       <select class="form-select" id="sri-orden-sel">
         <option value="">Sin orden específica</option>
       </select>
+    </div>
+  </div>
+</div>
+      <!-- Sección gasto del taller -->
+<div id="sri-gasto-section" style="display:none">
+  <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;margin-top:4px">Clasificación del gasto</div>
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Tipo de gasto</label>
+      <select class="form-select" id="sri-gasto-tipo">
+        <option value="preoperativo_adecuacion">Preoperativo — Adecuación local</option>
+        <option value="preoperativo_equipos">Preoperativo — Equipos/herramientas</option>
+        <option value="preoperativo_otros">Preoperativo — Otros</option>
+        <option value="activo_fijo">Activo fijo</option>
+        <option value="gasto_operativo">Gasto operativo</option>
+        <option value="gasto_servicios">Servicios (luz, agua, internet)</option>
+        <option value="gasto_arriendo">Arriendo</option>
+        <option value="gasto_otros">Otros gastos</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Descripción del gasto *</label>
+      <input class="form-input" id="sri-gasto-desc" placeholder="Ej: Instalación cerca eléctrica">
+    </div>
+  </div>
+  <!-- Para activo fijo -->
+  <div id="sri-gasto-activo-sec" style="display:none">
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Vida útil (años)</label><input class="form-input" type="number" id="sri-gasto-vida" value="5" min="1"></div>
+      <div class="form-group"><label class="form-label">Valor residual $</label><input class="form-input" type="number" id="sri-gasto-residual" value="0" min="0" step="0.01"></div>
     </div>
   </div>
 </div>
@@ -1140,7 +1201,7 @@ window.addEventListener('load', () => {
 });
 
 // ═══════════ NAVIGATION ═══════════
-const PAGE_TITLES = {dashboard:'Dashboard',cotizador:'Cotizador',ordenes:'Órdenes de trabajo',clientes:'Clientes',vehiculos:'Vehículos',inventario:'Inventario',facturacion:'Facturación SRI',finanzas:'Finanzas',contabilidad:'Contabilidad', kardex:'Kardex'};
+const PAGE_TITLES = {dashboard:'Dashboard',cotizador:'Cotizador',ordenes:'Órdenes de trabajo',clientes:'Clientes',vehiculos:'Vehículos',inventario:'Inventario',facturacion:'Facturación SRI',finanzas:'Finanzas',contabilidad:'Contabilidad', kardex:'Kardex', facturas_compra:'Facturas'};
 
 function showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
@@ -1148,7 +1209,7 @@ function showPage(name) {
   document.getElementById(`page-${name}`).classList.remove('hidden');
   document.querySelectorAll('.nav-item').forEach(n => { if(n.textContent.toLowerCase().includes(PAGE_TITLES[name]?.toLowerCase().split(' ')[0].toLowerCase())) n.classList.add('active'); });
   document.getElementById('page-title').textContent = PAGE_TITLES[name] || name;
-  const loaders = { dashboard: loadDashboard, ordenes: loadOrdenes, clientes: loadClientes, vehiculos: loadVehiculos, inventario: loadInventario, facturacion: loadFacturacion, finanzas: loadFinanzas, contabilidad: loadContabilidad, kardex: loadKardex };
+  const loaders = { dashboard: loadDashboard, ordenes: loadOrdenes, clientes: loadClientes, vehiculos: loadVehiculos, inventario: loadInventario, facturacion: loadFacturacion, finanzas: loadFinanzas, contabilidad: loadContabilidad, kardex: loadKardex, facturas_compra: loadFacturasCompra };
   if (loaders[name]) loaders[name]();
 }
 
