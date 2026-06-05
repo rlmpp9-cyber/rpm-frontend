@@ -2893,51 +2893,6 @@ async function guardarFacturaSRI() {
     resetModalSRI();
   }
 }
-  } else if (tipo === 'gasto') {
-    const tipoGasto = document.getElementById('sri-gasto-tipo').value;
-    const descGasto = document.getElementById('sri-gasto-desc').value || `Factura ${numFact} - ${proveedor}`;
-    if (!descGasto) { alert('Ingresa una descripción del gasto'); return; }
-
-    if (tipoGasto.startsWith('preoperativo')) {
-      const catMap = { preoperativo_adecuacion:'adecuacion', preoperativo_equipos:'equipos', preoperativo_otros:'otros' };
-      const r = await api('POST', '/api/contabilidad/preoperativos', {
-        descripcion: descGasto, categoria: catMap[tipoGasto]||'otros',
-        fecha, monto: total, proveedor, numero_factura: numFact, tiene_factura: true
-      });
-      if (r?.id) {
-        closeModal('modal-factura-sri-compra');
-        resetModalSRI();
-        alert(`✓ Registrado como gasto preoperativo en Contabilidad.`);
-      } else alert(r?.error||'Error al registrar');
-
-    } else if (tipoGasto === 'activo_fijo') {
-      const vidaUtil = parseInt(document.getElementById('sri-gasto-vida').value)||5;
-      const valorResidual = parseFloat(document.getElementById('sri-gasto-residual').value)||0;
-      const r = await api('POST', '/api/activos', {
-        nombre: descGasto, categoria: 'equipo',
-        fecha_adquisicion: fecha, valor_adquisicion: total,
-        vida_util_anios: vidaUtil, valor_residual: valorResidual,
-        notas: `Factura ${numFact} - ${proveedor}`
-      });
-      if (r?.id) {
-        closeModal('modal-factura-sri-compra');
-        resetModalSRI();
-        alert(`✓ Registrado como activo fijo en Contabilidad.`);
-      } else alert(r?.error||'Error al registrar');
-
-    } else {
-      const catMap = { gasto_operativo:'materiales', gasto_servicios:'servicios', gasto_arriendo:'arriendo', gasto_otros:'otros' };
-      const r = await api('POST', '/api/finanzas/gastos', {
-        tipo: 'variable', categoria: catMap[tipoGasto]||'otros',
-        descripcion: descGasto, monto: total, fecha,
-        proveedor, numero_factura: numFact
-      });
-      if (r?.id) {
-        closeModal('modal-factura-sri-compra');
-        resetModalSRI();
-        alert(`✓ Registrado como gasto en Finanzas.`);
-      } else alert(r?.error||'Error al registrar');
-    }
   function buscarClienteVeh(q) {
   const res = document.getElementById('veh-cliente-resultados');
   document.getElementById('veh-cliente').value = '';
