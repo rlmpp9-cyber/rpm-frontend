@@ -1394,7 +1394,7 @@ async function abrirDetalleOrden(id) {
           <div id="rep-resultados" style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:6px;max-height:160px;overflow-y:auto;z-index:300;display:none;box-shadow:0 4px 12px rgba(0,0,0,.12)"></div>
         </div>
         <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Cant.</div>
-          <input class="form-input" id="rep-cant" type="number" min="0.1" step="0.1" value="1" style="font-size:12px" oninput="calcRepSubtotal()"></div>
+          <input class="form-input" id="rep-cant" type="number" min="0.1" step="0.1" value="1" style="font-size:12px;min-width:60px" oninput="calcRepSubtotal()"></div>
         <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">P. venta $</div>
           <input class="form-input" id="rep-precio" type="number" min="0" step="0.01" placeholder="0.00" style="font-size:12px" oninput="calcRepSubtotal()"></div>
         <div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Desc. $</div>
