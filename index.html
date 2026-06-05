@@ -2985,6 +2985,23 @@ async function filtrarFacturasCompra() {
   let items = [];
 
   // Gastos de finanzas
+  // Compras de inventario (entradas por factura)
+  const kardexCompras = await api('GET', '/api/kardex?referencia_tipo=compra');
+  const comprasVistas = new Set();
+  (kardexCompras?.movimientos||[]).forEach(k => {
+    const key = k.notas||k.producto_nombre;
+    if (!comprasVistas.has(key)) {
+      comprasVistas.add(key);
+      items.push({
+        id: k.id, fecha: k.created_at?.split('T')[0],
+        tipo_factura: 'compra',
+        descripcion: k.notas||`Compra ${k.producto_nombre}`,
+        proveedor: '—', numero_factura: '—',
+        total: parseFloat(k.cantidad) * parseFloat(k.precio_unit||0),
+        origen: 'inventario'
+      });
+    }
+  });
   (gastos||[]).filter(g=>g.tipo==='gasto').forEach(g => {
     items.push({
       id: g.id, fecha: g.fecha, tipo_factura: g.descripcion?.includes('Servicio externo')?'servicio':'gasto',
