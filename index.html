@@ -2834,23 +2834,59 @@ async function guardarFacturaSRI() {
     resetModalSRI();
     loadInventario();
     alert(`✓ Factura registrada. ${sriProdItems.length} producto(s) ingresaron al inventario${total > 0 ? ' y se registró el gasto en Finanzas' : ''}.`);
- } else if (tipo === 'servicio') {
+
+  } else if (tipo === 'servicio') {
     const tipoServ = document.getElementById('sri-tipo-servicio-sel').value;
     const ordenId = document.getElementById('sri-orden-sel').value;
     const r = await api('POST', '/api/finanzas/gastos', {
       tipo: 'variable', categoria: 'mano_obra_externa',
       descripcion: `Servicio externo: ${tipoServ} - ${proveedor || 'Proveedor'} · Fact. ${numFact}`,
       monto: total, fecha, proveedor, numero_factura: numFact,
-      tipo_servicio: tipoServ,
-      orden_id: ordenId || null
+      tipo_servicio: tipoServ, orden_id: ordenId || null
     });
     if (r?.id) {
       closeModal('modal-factura-sri-compra');
       resetModalSRI();
       alert(`✓ Servicio externo registrado como gasto${ordenId?' y vinculado a la orden':''}.`);
+    } else alert(r?.error || 'Error al registrar');
+
+  } else if (tipo === 'gasto') {
+    const tipoGasto = document.getElementById('sri-gasto-tipo').value;
+    const descGasto = document.getElementById('sri-gasto-desc').value || `Factura ${numFact} - ${proveedor}`;
+    if (!descGasto) { alert('Ingresa una descripción del gasto'); return; }
+
+    if (tipoGasto.startsWith('preoperativo')) {
+      const catMap = { preoperativo_adecuacion:'adecuacion', preoperativo_equipos:'equipos', preoperativo_otros:'otros' };
+      const r = await api('POST', '/api/contabilidad/preoperativos', {
+        descripcion: descGasto, categoria: catMap[tipoGasto]||'otros',
+        fecha, monto: total, proveedor, numero_factura: numFact, tiene_factura: true
+      });
+      if (r?.id) { closeModal('modal-factura-sri-compra'); resetModalSRI(); alert(`✓ Registrado como gasto preoperativo.`); }
+      else alert(r?.error||'Error al registrar');
+
+    } else if (tipoGasto === 'activo_fijo') {
+      const vidaUtil = parseInt(document.getElementById('sri-gasto-vida').value)||5;
+      const valorResidual = parseFloat(document.getElementById('sri-gasto-residual').value)||0;
+      const r = await api('POST', '/api/activos', {
+        nombre: descGasto, categoria: 'equipo',
+        fecha_adquisicion: fecha, valor_adquisicion: total,
+        vida_util_anios: vidaUtil, valor_residual: valorResidual,
+        notas: `Factura ${numFact} - ${proveedor}`
+      });
+      if (r?.id) { closeModal('modal-factura-sri-compra'); resetModalSRI(); alert(`✓ Registrado como activo fijo.`); }
+      else alert(r?.error||'Error al registrar');
+
     } else {
-      alert(r?.error || 'Error al registrar');
+      const catMap = { gasto_operativo:'materiales', gasto_servicios:'servicios', gasto_arriendo:'arriendo', gasto_otros:'otros' };
+      const r = await api('POST', '/api/finanzas/gastos', {
+        tipo: 'variable', categoria: catMap[tipoGasto]||'otros',
+        descripcion: descGasto, monto: total, fecha,
+        proveedor, numero_factura: numFact
+      });
+      if (r?.id) { closeModal('modal-factura-sri-compra'); resetModalSRI(); alert(`✓ Registrado como gasto en Finanzas.`); }
+      else alert(r?.error||'Error al registrar');
     }
+
   } else {
     alert(`✓ Factura de venta ${numFact} registrada.\nTotal: $${total.toFixed(2)}\nEmisor: ${proveedor || '—'}`);
     closeModal('modal-factura-sri-compra');
