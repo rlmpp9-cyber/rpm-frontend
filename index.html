@@ -1660,12 +1660,30 @@ async function guardarEdicionOrden(id) {
   const fecha = document.getElementById('edit-fecha').value;
   const tipoDesc = document.getElementById('edit-desc-tipo')?.value || 'ninguno';
   const valDesc  = parseFloat(document.getElementById('edit-desc-valor')?.value)||0;
+
+  // Verificar stock de repuestos antes de guardar
+  const repuestos = editItems.filter(i => i.tipo === 'repuesto' && i.producto_id);
+  const sinStock = [];
+  for (const rep of repuestos) {
+    const prod = todosProductos.find(p => p.id === rep.producto_id);
+    if (prod && parseFloat(prod.stock_actual) < parseFloat(rep.cantidad)) {
+      sinStock.push(`${rep.descripcion} (Stock: ${parseFloat(prod.stock_actual).toFixed(2)}, Necesario: ${rep.cantidad})`);
+    }
+  }
+  if (sinStock.length) {
+    alert(`⚠ Stock insuficiente para los siguientes repuestos:\n\n${sinStock.join('\n')}\n\nIngresa los repuestos al inventario antes de guardar.`);
+    return;
+  }
+
   const items = editItems.map(i=>({
     tipo: i.tipo, descripcion: i.descripcion,
     cantidad: parseFloat(i.cantidad),
     precio_unit: parseFloat(i.precio_unit||i.precio_unitario||0),
-    unidad: i.unidad||'unidad'
+    descuento: parseFloat(i.descuento||0),
+    unidad: i.unidad||'unidad',
+    producto_id: i.producto_id||null
   }));
+
   const r = await api('PUT', `/api/ordenes/${id}`, {
     descripcion:desc, notas_cliente:notas,
     kilometraje_ingreso:km||undefined,
@@ -1673,10 +1691,27 @@ async function guardarEdicionOrden(id) {
     descuento_tipo:tipoDesc, descuento_valor:valDesc,
     items
   });
+
   if (r?.id||r?.numero) {
+    // Descontar stock de repuestos automáticamente
+    for (const rep of repuestos) {
+      await api('POST', `/api/inventario/${rep.producto_id}/movimiento`, {
+        tipo: 'salida',
+        cantidad: parseFloat(rep.cantidad),
+        precio_unit: parseFloat(rep.precio_unit||0),
+        referencia_tipo: 'orden',
+        referencia_id: id,
+        notas: `Orden ${r.numero} - ${rep.descripcion}`
+      });
+    }
+    // Actualizar stock local
+    if (repuestos.length) {
+      const invActualizado = await api('GET', '/api/inventario');
+      if (invActualizado) todosProductos = invActualizado;
+    }
     closeModal('modal-detalle-orden');
     loadOrdenes();
-    alert('✓ Orden actualizada correctamente');
+    alert(`✓ Orden actualizada${repuestos.length ? ` · ${repuestos.length} repuesto(s) descontados del inventario` : ''}`);
   } else {
     alert(r?.error||'Error al guardar los cambios');
   }
