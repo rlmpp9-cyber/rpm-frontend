@@ -171,6 +171,7 @@ textarea.form-input{resize:vertical}
       <div class="nav-item" onclick="showPage('vehiculos')">🚗 Vehículos</div>
       <div class="nav-sec">Administración</div>
       <div class="nav-item" onclick="showPage('inventario')">📦 Inventario</div>
+      <div class="nav-item" onclick="showPage('kardex')">📋 Kardex</div>
       <div class="nav-item" onclick="showPage('facturacion')">📄 Facturación SRI</div>
       <div class="nav-item" onclick="showPage('finanzas')">💰 Finanzas</div>
       <div class="nav-item" onclick="showPage('contabilidad')">📒 Contabilidad</div>
@@ -365,6 +366,54 @@ textarea.form-input{resize:vertical}
       <div class="card" id="fact-tabla-wrap">
         <div style="font-weight:600;margin-bottom:14px;font-size:13px">Comprobantes emitidos</div>
         <div class="table-wrap" id="fact-tabla"></div>
+      </div>
+    </div>
+    <div class="page hidden" id="page-kardex">
+      <div class="sec-header">
+        <div><div class="sec-title">Kardex</div><div class="sec-sub">Movimientos de inventario</div></div>
+        <button class="btn btn-secondary" onclick="exportarKardex()">⬇ Exportar</button>
+      </div>
+      <!-- Filtros -->
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:10px;align-items:end">
+          <div>
+            <label class="form-label">Buscar producto</label>
+            <input class="form-input" id="kx-buscar" placeholder="Nombre o código..." oninput="filtrarKardex()">
+          </div>
+          <div>
+            <label class="form-label">Tipo movimiento</label>
+            <select class="form-select" id="kx-tipo" onchange="filtrarKardex()">
+              <option value="">Todos</option>
+              <option value="entrada">Entradas</option>
+              <option value="salida">Salidas</option>
+              <option value="ajuste">Ajustes</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Referencia</label>
+            <select class="form-select" id="kx-ref" onchange="filtrarKardex()">
+              <option value="">Todas</option>
+              <option value="compra">Compra</option>
+              <option value="orden">Orden trabajo</option>
+              <option value="ajuste">Ajuste manual</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Desde</label>
+            <input class="form-input" type="date" id="kx-desde" onchange="filtrarKardex()">
+          </div>
+          <div>
+            <label class="form-label">Hasta</label>
+            <input class="form-input" type="date" id="kx-hasta" onchange="filtrarKardex()">
+          </div>
+          <button class="btn btn-secondary" onclick="limpiarFiltrosKardex()">✕ Limpiar</button>
+        </div>
+      </div>
+      <!-- KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px" id="kx-kpis"></div>
+      <!-- Tabla -->
+      <div class="card">
+        <div class="table-wrap" id="kx-tabla"></div>
       </div>
     </div>
 <div class="page hidden" id="page-contabilidad">
@@ -1091,7 +1140,7 @@ window.addEventListener('load', () => {
 });
 
 // ═══════════ NAVIGATION ═══════════
-const PAGE_TITLES = {dashboard:'Dashboard',cotizador:'Cotizador',ordenes:'Órdenes de trabajo',clientes:'Clientes',vehiculos:'Vehículos',inventario:'Inventario',facturacion:'Facturación SRI',finanzas:'Finanzas',contabilidad:'Contabilidad'};
+const PAGE_TITLES = {dashboard:'Dashboard',cotizador:'Cotizador',ordenes:'Órdenes de trabajo',clientes:'Clientes',vehiculos:'Vehículos',inventario:'Inventario',facturacion:'Facturación SRI',finanzas:'Finanzas',contabilidad:'Contabilidad', kardex:'Kardex'};
 
 function showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
@@ -1099,7 +1148,7 @@ function showPage(name) {
   document.getElementById(`page-${name}`).classList.remove('hidden');
   document.querySelectorAll('.nav-item').forEach(n => { if(n.textContent.toLowerCase().includes(PAGE_TITLES[name]?.toLowerCase().split(' ')[0].toLowerCase())) n.classList.add('active'); });
   document.getElementById('page-title').textContent = PAGE_TITLES[name] || name;
-  const loaders = { dashboard: loadDashboard, ordenes: loadOrdenes, clientes: loadClientes, vehiculos: loadVehiculos, inventario: loadInventario, facturacion: loadFacturacion, finanzas: loadFinanzas, contabilidad: loadContabilidad };
+  const loaders = { dashboard: loadDashboard, ordenes: loadOrdenes, clientes: loadClientes, vehiculos: loadVehiculos, inventario: loadInventario, facturacion: loadFacturacion, finanzas: loadFinanzas, contabilidad: loadContabilidad, kardex: loadKardex };
   if (loaders[name]) loaders[name]();
 }
 
@@ -2769,6 +2818,134 @@ function seleccionarInsumo(id, nombre, stock, unidad) {
   const hidden = document.getElementById('insumo-prod');
   hidden.dataset.stock = stock;
   hidden.dataset.unidad = unidad;
+}
+  // ═══════════ KARDEX ═══════════
+let kardexData = [];
+
+async function loadKardex() {
+  // Fechas por defecto: último mes
+  const hoy = new Date();
+  const hace30 = new Date(hoy - 30*24*60*60*1000);
+  if (!document.getElementById('kx-desde').value) {
+    document.getElementById('kx-desde').value = hace30.toISOString().split('T')[0];
+  }
+  if (!document.getElementById('kx-hasta').value) {
+    document.getElementById('kx-hasta').value = hoy.toISOString().split('T')[0];
+  }
+  await filtrarKardex();
+}
+
+async function filtrarKardex() {
+  const buscar = document.getElementById('kx-buscar').value;
+  const tipo = document.getElementById('kx-tipo').value;
+  const ref = document.getElementById('kx-ref').value;
+  const desde = document.getElementById('kx-desde').value;
+  const hasta = document.getElementById('kx-hasta').value;
+
+  let url = '/api/kardex?';
+  if (buscar) url += `buscar=${encodeURIComponent(buscar)}&`;
+  if (tipo) url += `tipo=${tipo}&`;
+  if (ref) url += `referencia_tipo=${ref}&`;
+  if (desde) url += `fecha_inicio=${desde}&`;
+  if (hasta) url += `fecha_fin=${hasta}&`;
+
+  const r = await api('GET', url);
+  if (!r) return;
+  kardexData = r.movimientos || [];
+  const res = r.resumen || {};
+
+  // KPIs
+  document.getElementById('kx-kpis').innerHTML = [
+    ['Total movimientos', res.total_movimientos||0, 'var(--info)',''],
+    ['Total entradas', parseFloat(res.total_entradas||0).toFixed(2)+' uds', 'var(--ok)',''],
+    ['Total salidas', parseFloat(res.total_salidas||0).toFixed(2)+' uds', 'var(--red)',''],
+    ['Productos movidos', res.productos_movidos||0, 'var(--warn)','']
+  ].map(([l,v,c])=>`<div class="card" style="text-align:center;border-top:3px solid ${c}">
+    <div style="font-size:11px;color:var(--t3);margin-bottom:6px">${l}</div>
+    <div style="font-size:22px;font-weight:700;color:${c}">${v}</div></div>`).join('');
+
+  renderTablaKardex();
+}
+
+function renderTablaKardex() {
+  if (!kardexData.length) {
+    document.getElementById('kx-tabla').innerHTML = '<div class="empty">Sin movimientos en el período seleccionado</div>';
+    return;
+  }
+  const TIPO_C = { entrada:'b-green', salida:'b-red', ajuste:'b-amber' };
+  const TIPO_L = { entrada:'↑ Entrada', salida:'↓ Salida', ajuste:'⚖ Ajuste' };
+  const REF_L = { compra:'Compra', orden:'Orden trabajo', ajuste:'Ajuste manual', factura:'Factura SRI' };
+
+  document.getElementById('kx-tabla').innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Producto</th>
+          <th>Código</th>
+          <th>Categoría</th>
+          <th>Tipo</th>
+          <th>Cantidad</th>
+          <th>P. unitario</th>
+          <th>Saldo</th>
+          <th>Referencia</th>
+          <th>Notas</th>
+          <th>Usuario</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${kardexData.map(m => `
+          <tr>
+            <td style="font-size:11px;color:var(--t3);white-space:nowrap">
+              ${new Date(m.created_at).toLocaleDateString('es-EC')}<br>
+              <span style="font-size:10px">${new Date(m.created_at).toLocaleTimeString('es-EC',{hour:'2-digit',minute:'2-digit'})}</span>
+            </td>
+            <td>
+              <div style="font-weight:600;font-size:12px">${m.producto_nombre}</div>
+            </td>
+            <td style="font-family:monospace;font-size:11px">${m.producto_codigo||'—'}</td>
+            <td><span class="badge b-blue" style="font-size:9px;text-transform:capitalize">${m.producto_categoria||'—'}</span></td>
+            <td><span class="badge ${TIPO_C[m.tipo]||'b-gray'}" style="font-size:10px">${TIPO_L[m.tipo]||m.tipo}</span></td>
+            <td style="font-weight:700;color:${m.tipo==='entrada'?'var(--ok)':'var(--red)'}">
+              ${m.tipo==='entrada'?'+':'−'}${parseFloat(m.cantidad).toFixed(2)} ${m.producto_unidad}
+            </td>
+            <td style="font-size:12px">${m.precio_unit?'$'+parseFloat(m.precio_unit).toFixed(2):'—'}</td>
+            <td style="font-weight:600;font-size:12px">${parseFloat(m.saldo).toFixed(2)} ${m.producto_unidad}</td>
+            <td><span class="badge b-gray" style="font-size:9px">${REF_L[m.referencia_tipo]||m.referencia_tipo||'—'}</span></td>
+            <td style="font-size:11px;color:var(--t3);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${m.notas||''}">${m.notas||'—'}</td>
+            <td style="font-size:11px;color:var(--t3)">${m.usuario_nombre||'—'}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function limpiarFiltrosKardex() {
+  document.getElementById('kx-buscar').value = '';
+  document.getElementById('kx-tipo').value = '';
+  document.getElementById('kx-ref').value = '';
+  document.getElementById('kx-desde').value = '';
+  document.getElementById('kx-hasta').value = '';
+  filtrarKardex();
+}
+
+function exportarKardex() {
+  if (!kardexData.length) { alert('No hay datos para exportar'); return; }
+  const headers = ['Fecha','Producto','Código','Categoría','Tipo','Cantidad','Unidad','P.Unitario','Saldo','Referencia','Notas'];
+  const rows = kardexData.map(m => [
+    new Date(m.created_at).toLocaleDateString('es-EC'),
+    m.producto_nombre, m.producto_codigo||'',
+    m.producto_categoria||'', m.tipo,
+    parseFloat(m.cantidad).toFixed(2), m.producto_unidad,
+    m.precio_unit?parseFloat(m.precio_unit).toFixed(2):'',
+    parseFloat(m.saldo).toFixed(2),
+    m.referencia_tipo||'', m.notas||''
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(v=>`"${v}"`).join(',')).join('\n');
+  const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `kardex_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click(); URL.revokeObjectURL(url);
 }
  // ═══════════ CONTABILIDAD ═══════════
 function setCTab(tab) {
