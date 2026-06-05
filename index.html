@@ -2986,7 +2986,7 @@ async function filtrarFacturasCompra() {
 
   // Gastos de finanzas
   // Compras de inventario (entradas por factura)
-  const kardexCompras = await api('GET', '/api/kardex?referencia_tipo=compra');
+  const kardexCompras = await api('GET', '/api/kardex?tipo=entrada');
   const comprasVistas = new Set();
   (kardexCompras?.movimientos||[]).forEach(k => {
     const key = k.notas||k.producto_nombre;
