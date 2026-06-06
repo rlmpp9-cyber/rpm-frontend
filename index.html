@@ -1414,10 +1414,10 @@ async function abrirDetalleOrden(id) {
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;background:var(--hover);border-radius:8px;padding:10px 12px">
       <select id="edit-desc-tipo" class="form-select" style="width:140px;font-size:12px" onchange="recalcEditTotal()">
         <option value="ninguno">Sin descuento</option>
-        <option value="porcentaje">Por porcentaje (%)</option>
-        <option value="valor">Por valor ($)</option>
+        <option value="porcentaje" ${r.descuento_tipo==='porcentaje'?'selected':''}>Por porcentaje (%)</option>
+        <option value="valor" ${r.descuento_tipo==='valor'||(!r.descuento_tipo&&parseFloat(r.descuento||0)>0)?'selected':''}>Por valor ($)</option>
       </select>
-      <input id="edit-desc-valor" class="form-input" type="number" min="0" step="0.01" placeholder="0" value="${r.descuento||0}" style="width:100px;font-size:12px" oninput="recalcEditTotal()">
+      <input id="edit-desc-valor" class="form-input" type="number" min="0" step="0.01" placeholder="0" value="${parseFloat(r.descuento||0).toFixed(2)}" style="width:100px;font-size:12px" oninput="recalcEditTotal()">
       <div style="font-size:12px;color:var(--t3)" id="edit-desc-info">Ingresa el tipo y valor del descuento</div>
     </div>
 
