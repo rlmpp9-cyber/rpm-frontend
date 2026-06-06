@@ -1510,6 +1510,7 @@ async function abrirDetalleOrden(id) {
   document.getElementById('det-foot').innerHTML = `
     <button class="btn btn-sm" style="background:var(--red-bg);color:var(--red)" onclick="eliminarOrden('${r.id}','${r.numero}')">🗑 Eliminar orden</button>
     <button class="btn btn-secondary" onclick="closeModal('modal-detalle-orden')">Cerrar</button>
+    <button class="btn btn-secondary" onclick="imprimirPrefactura('${r.id}')">🖨️ Prefactura</button>
     <button class="btn btn-secondary" style="background:var(--warn-bg);color:var(--warn)" onclick="guardarEdicionOrden('${r.id}')">💾 Guardar cambios</button>
     ${r.estado==='finalizado'?`<button class="btn btn-primary" onclick="showPage('facturacion');closeModal('modal-detalle-orden')">Ir a facturar</button>`:''}`;
   openModal('modal-detalle-orden');
@@ -2957,6 +2958,112 @@ function seleccionarInsumo(id, nombre, stock, unidad) {
   const hidden = document.getElementById('insumo-prod');
   hidden.dataset.stock = stock;
   hidden.dataset.unidad = unidad;
+}
+  function imprimirPrefactura(ordenId) {
+  const r = ordenActual;
+  if (!r) return;
+
+  const TIPO_L = {mano_obra:'Mano de obra', repuesto:'Repuestos', externo:'Servicios externos', material:'Materiales'};
+  const grupos = {mano_obra:[], repuesto:[], externo:[], material:[]};
+  editItems.forEach(i => { if(grupos[i.tipo]) grupos[i.tipo].push(i); else grupos.material.push(i); });
+
+  const subtotal = editItems.reduce((a,i) => a + (parseFloat(i.cantidad) * parseFloat(i.precio_unit||i.precio_unitario||0)) - parseFloat(i.descuento||0), 0);
+  const iva = subtotal * 0.15;
+  const total = subtotal + iva;
+
+  const seccionesHTML = Object.entries(grupos).map(([tipo, items]) => {
+    if (!items.length) return '';
+    return `
+      <div style="margin-bottom:16px">
+        <div style="font-size:12px;font-weight:700;color:#2C4A3E;text-transform:uppercase;letter-spacing:.5px;padding:6px 10px;background:#EAF3DE;border-radius:4px;margin-bottom:8px">${TIPO_L[tipo]||tipo}</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr style="background:#f5f5f5">
+              <th style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd">Descripción</th>
+              <th style="text-align:center;padding:6px 8px;border-bottom:1px solid #ddd">Cant.</th>
+              <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd">P. unitario</th>
+              ${tipo==='repuesto'?'<th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd">Descuento</th>':''}
+              <th style="text-align:right;padding:6px 8px;border-bottom:1px solid #ddd">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map(i => {
+              const sub = (parseFloat(i.cantidad) * parseFloat(i.precio_unit||i.precio_unitario||0)) - parseFloat(i.descuento||0);
+              return `<tr>
+                <td style="padding:6px 8px;border-bottom:1px solid #eee">${i.descripcion}</td>
+                <td style="text-align:center;padding:6px 8px;border-bottom:1px solid #eee">${parseFloat(i.cantidad).toFixed(2)}</td>
+                <td style="text-align:right;padding:6px 8px;border-bottom:1px solid #eee">$${parseFloat(i.precio_unit||i.precio_unitario||0).toFixed(2)}</td>
+                ${tipo==='repuesto'?`<td style="text-align:right;padding:6px 8px;border-bottom:1px solid #eee;color:#e74c3c">-$${parseFloat(i.descuento||0).toFixed(2)}</td>`:''}
+                <td style="text-align:right;padding:6px 8px;border-bottom:1px solid #eee;font-weight:600">$${sub.toFixed(2)}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Prefactura ${r.numero}</title>
+  <style>
+    body{font-family:Arial,sans-serif;padding:32px;max-width:750px;margin:0 auto;color:#333}
+    .header{display:flex;justify-content:space-between;align-items:start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #2C4A3E}
+    .logo{width:56px;height:56px;background:#2C4A3E;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px}
+    .badge{display:inline-block;background:#FEF3CD;color:#D68910;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;margin-bottom:8px}
+    .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;background:#f9f9f9;border-radius:8px;padding:14px}
+    .info-item{font-size:12px}.info-label{color:#888;margin-bottom:2px}.info-value{font-weight:600}
+    .totales{margin-top:16px;padding:14px;background:#f9f9f9;border-radius:8px;text-align:right}
+    .total-final{font-size:20px;font-weight:700;color:#2C4A3E;margin-top:8px}
+    .footer{margin-top:24px;padding-top:12px;border-top:1px solid #eee;font-size:11px;color:#888;text-align:center}
+    @media print{body{padding:16px}}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div class="logo">RPM</div>
+      <div>
+        <div style="font-size:18px;font-weight:700;color:#2C4A3E">RPM Estudio Automotriz</div>
+        <div style="font-size:12px;color:#888">RUC 1104850795001 · González Suárez 9-130, Totoracocha · Cuenca</div>
+        <div style="font-size:12px;color:#888">0981042788 · rpmestudioautomotriz@hotmail.com</div>
+      </div>
+    </div>
+    <div style="text-align:right">
+      <div class="badge">PREFACTURA</div>
+      <div style="font-size:20px;font-weight:700">${r.numero}</div>
+      <div style="font-size:12px;color:#888">${new Date().toLocaleDateString('es-EC')}</div>
+    </div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-item"><div class="info-label">Cliente</div><div class="info-value">${r.cliente_nombre}</div></div>
+    <div class="info-item"><div class="info-label">Vehículo</div><div class="info-value">${r.marca} ${r.modelo} ${r.anio}</div></div>
+    <div class="info-item"><div class="info-label">Placa</div><div class="info-value">${r.placa}</div></div>
+    <div class="info-item"><div class="info-label">Servicio</div><div class="info-value" style="text-transform:capitalize">${r.tipo_servicio||'General'}</div></div>
+    <div class="info-item" style="grid-column:span 2"><div class="info-label">Descripción del trabajo</div><div class="info-value">${r.descripcion||'—'}</div></div>
+  </div>
+
+  ${seccionesHTML}
+
+  <div class="totales">
+    <div style="font-size:13px;color:#666">Subtotal: <strong>$${subtotal.toFixed(2)}</strong></div>
+    <div style="font-size:13px;color:#666;margin-top:4px">IVA 15%: <strong>$${iva.toFixed(2)}</strong></div>
+    <div class="total-final">TOTAL: $${total.toFixed(2)}</div>
+  </div>
+
+  <div class="footer">
+    Este documento es una prefactura referencial — no tiene validez tributaria.<br>
+    RPM Estudio Automotriz · RIMPE Emprendedor · Cuenca, Ecuador
+  </div>
+</body>
+</html>`;
+
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+  w.onload = () => w.print();
 }
     // ═══════════ FACTURAS COMPRA ═══════════
 let facturasCompraData = [];
