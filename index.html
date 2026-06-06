@@ -1761,22 +1761,6 @@ async function guardarEdicionOrden(id) {
   });
 
   if (r?.id||r?.numero) {
-    // Descontar stock de repuestos automáticamente
-    for (const rep of repuestos) {
-      await api('POST', `/api/inventario/${rep.producto_id}/movimiento`, {
-        tipo: 'salida',
-        cantidad: parseFloat(rep.cantidad),
-        precio_unit: parseFloat(rep.precio_unit||0),
-        referencia_tipo: 'orden',
-        referencia_id: id,
-        notas: `Orden ${r.numero} - ${rep.descripcion}`
-      });
-    }
-    // Actualizar stock local
-    if (repuestos.length) {
-      const invActualizado = await api('GET', '/api/inventario');
-      if (invActualizado) todosProductos = invActualizado;
-    }
     closeModal('modal-detalle-orden');
     loadOrdenes();
     alert(`✓ Orden actualizada${repuestos.length ? ` · ${repuestos.length} repuesto(s) descontados del inventario` : ''}`);
@@ -2448,6 +2432,21 @@ async function emitirFactura() {
     forma_pago:document.getElementById('fact-pago').value, items
   });
   if (r?.factura_id||r?.numero_factura) {
+    // Descontar repuestos del inventario al facturar
+    if (ordenId) {
+      const orden = await api('GET', `/api/ordenes/${ordenId}`);
+      const repuestos = (orden?.items||[]).filter(i => i.tipo==='repuesto' && i.producto_id);
+      for (const rep of repuestos) {
+        await api('POST', `/api/inventario/${rep.producto_id}/movimiento`, {
+          tipo: 'salida',
+          cantidad: parseFloat(rep.cantidad),
+          precio_unit: parseFloat(rep.precio_unit||rep.precio_unitario||0),
+          referencia_tipo: 'orden',
+          referencia_id: ordenId,
+          notas: `Factura ${r.numero_factura} - ${rep.descripcion}`
+        });
+      }
+    }
     closeModal('modal-nueva-factura');
     factLineasData = [];
     loadFacturacion();
