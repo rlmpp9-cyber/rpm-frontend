@@ -2327,11 +2327,63 @@ function setFactOrigen(origen) {
   if (origen === 'directo') iniciarLineasFactura();
 }
 
-function selOrdenParaFactura(ordenId) {
+async function selOrdenParaFactura(ordenId) {
   const opt = document.querySelector(`#fact-orden option[value="${ordenId}"]`);
   if (!opt) return;
   document.getElementById('fact-cliente').value = opt.dataset.cliente;
-  factLineasData = [{descripcion:`${opt.dataset.servicio||'Servicio'} - ${opt.dataset.placa}`, cantidad:1, precio_unitario:parseFloat(opt.dataset.total||0), descuento:0}];
+
+  // Cargar ítems reales de la orden separados por tipo
+  const orden = await api('GET', `/api/ordenes/${ordenId}`);
+  if (!orden) return;
+
+  const items = orden.items || [];
+  factLineasData = [];
+
+  // Agrupar por tipo
+  const manoObra = items.filter(i => i.tipo === 'mano_obra' || i.tipo === 'material');
+  const repuestos = items.filter(i => i.tipo === 'repuesto');
+  const externos = items.filter(i => i.tipo === 'externo');
+
+  // Agregar separadores y líneas por sección
+  if (manoObra.length) {
+    factLineasData.push({ descripcion:'── MANO DE OBRA ──', cantidad:1, precio_unitario:0, descuento:0, es_separador:true });
+    manoObra.forEach(i => factLineasData.push({
+      descripcion: i.descripcion,
+      cantidad: parseFloat(i.cantidad),
+      precio_unitario: parseFloat(i.precio_unit||i.precio_unitario||0),
+      descuento: parseFloat(i.descuento||0)
+    }));
+  }
+  if (repuestos.length) {
+    factLineasData.push({ descripcion:'── REPUESTOS ──', cantidad:1, precio_unitario:0, descuento:0, es_separador:true });
+    repuestos.forEach(i => factLineasData.push({
+      descripcion: i.descripcion,
+      cantidad: parseFloat(i.cantidad),
+      precio_unitario: parseFloat(i.precio_unit||i.precio_unitario||0),
+      descuento: parseFloat(i.descuento||0)
+    }));
+  }
+  if (externos.length) {
+    factLineasData.push({ descripcion:'── SERVICIOS EXTERNOS ──', cantidad:1, precio_unitario:0, descuento:0, es_separador:true });
+    externos.forEach(i => factLineasData.push({
+      descripcion: i.descripcion,
+      cantidad: parseFloat(i.cantidad),
+      precio_unitario: parseFloat(i.precio_unit||i.precio_unitario||0),
+      descuento: parseFloat(i.descuento||0)
+    }));
+  }
+
+  // Aplicar descuento de la orden si existe
+  if (parseFloat(orden.descuento||0) > 0) {
+    factLineasData.push({ descripcion:'── DESCUENTO ──', cantidad:1, precio_unitario:0, descuento:0, es_separador:true });
+    factLineasData.push({
+      descripcion: `Descuento aplicado`,
+      cantidad: 1,
+      precio_unitario: 0,
+      descuento: parseFloat(orden.descuento||0)
+    });
+  }
+
   renderLineasFactura();
 }
 
@@ -2346,19 +2398,24 @@ function agregarLineaFactura() {
 }
 
 function renderLineasFactura() {
-  document.getElementById('fact-lineas').innerHTML = factLineasData.map((line,idx)=>`
-    <div style="display:grid;grid-template-columns:2fr 0.5fr 0.8fr 0.7fr auto;gap:6px;margin-bottom:8px;align-items:end">
-      ${idx===0?`<div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Descripción</div>`:''}<input class="form-input" style="font-size:12px" value="${line.descripcion}" oninput="factLineasData[${idx}].descripcion=this.value;recalcFactura()" placeholder="Descripción">
-      ${idx===0?`</div><div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Cant.</div>`:''}<input class="form-input" style="font-size:12px" type="number" value="${line.cantidad}" min="1" oninput="factLineasData[${idx}].cantidad=parseFloat(this.value)||1;recalcFactura()">
-      ${idx===0?`</div><div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">P. unitario $</div>`:''}<input class="form-input" style="font-size:12px" type="number" value="${line.precio_unitario}" step="0.01" oninput="factLineasData[${idx}].precio_unitario=parseFloat(this.value)||0;recalcFactura()">
-      ${idx===0?`</div><div><div style="font-size:10px;color:var(--t3);margin-bottom:3px">Desc. $</div>`:''}<input class="form-input" style="font-size:12px" type="number" value="${line.descuento}" step="0.01" oninput="factLineasData[${idx}].descuento=parseFloat(this.value)||0;recalcFactura()">
-      ${idx===0?'</div>':''}<button onclick="factLineasData.splice(${idx},1);renderLineasFactura()" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:18px;padding:0 4px;line-height:1;align-self:end;margin-bottom:1px">${factLineasData.length>1?'×':''}</button>
-    </div>`).join('');
+  document.getElementById('fact-lineas').innerHTML = factLineasData.map((line,idx) => {
+    if (line.es_separador) {
+      return `<div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;padding:8px 0 4px;border-top:1px solid var(--border);margin-top:4px">${line.descripcion.replace(/──/g,'').trim()}</div>`;
+    }
+    return `
+    <div style="display:grid;grid-template-columns:2fr 0.5fr 0.8fr 0.7fr auto;gap:6px;margin-bottom:6px;align-items:center">
+      <input class="form-input" style="font-size:12px" value="${line.descripcion}" oninput="factLineasData[${idx}].descripcion=this.value;recalcFactura()" placeholder="Descripción">
+      <input class="form-input" style="font-size:12px" type="number" value="${line.cantidad}" min="1" oninput="factLineasData[${idx}].cantidad=parseFloat(this.value)||1;recalcFactura()">
+      <input class="form-input" style="font-size:12px" type="number" value="${line.precio_unitario}" step="0.01" oninput="factLineasData[${idx}].precio_unitario=parseFloat(this.value)||0;recalcFactura()">
+      <input class="form-input" style="font-size:12px" type="number" value="${line.descuento}" step="0.01" oninput="factLineasData[${idx}].descuento=parseFloat(this.value)||0;recalcFactura()">
+      <button onclick="factLineasData.splice(${idx},1);renderLineasFactura()" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:18px;padding:0 4px;line-height:1">${factLineasData.length>1?'×':''}</button>
+    </div>`;
+  }).join('');
   recalcFactura();
 }
 
 function recalcFactura() {
-  const sub = factLineasData.reduce((a,i)=>a+(i.cantidad*i.precio_unitario-i.descuento),0);
+  const sub = factLineasData.filter(i=>!i.es_separador).reduce((a,i)=>a+(i.cantidad*i.precio_unitario-i.descuento),0);
   const iva = sub*0.15;
   document.getElementById('fact-totales').innerHTML = [['Subtotal gravado',sub],['IVA 15%',iva],['TOTAL',sub+iva]].map(([k,v],i)=>`
     <div style="display:flex;justify-content:space-between;font-size:${i===2?14:12}px;font-weight:${i===2?700:400};padding:4px 0;border-bottom:${i<2?'1px solid var(--border)':'none'};color:${i===2?'var(--verde)':'var(--t1)'}">
@@ -2369,7 +2426,7 @@ async function emitirFactura() {
   const clienteId = document.getElementById('fact-cliente').value;
   const err = document.getElementById('fact-error');
   if (!clienteId) { err.textContent='Selecciona un cliente'; err.classList.remove('hidden'); return; }
-  const items = factLineasData.filter(i=>i.descripcion&&i.precio_unitario>0).map(i=>({...i}));
+  const items = factLineasData.filter(i=>!i.es_separador&&i.descripcion&&i.precio_unitario>0).map(i=>({...i}));
   if (!items.length) { err.textContent='Agrega al menos un ítem con precio'; err.classList.remove('hidden'); return; }
   err.classList.add('hidden');
   const ordenId = document.getElementById('fact-orden').value || undefined;
