@@ -359,7 +359,7 @@ textarea.form-input{resize:vertical}
         <div><div class="sec-title">Facturación electrónica SRI</div><div class="sec-sub">RUC 1104850795001 · RIMPE Emprendedor</div></div>
         <div style="display:flex;gap:8px;align-items:center">
           <span class="badge b-green">● Conectado al SRI</span>
-          <button class="btn btn-primary" onclick="openModal('modal-nueva-factura')">+ Emitir factura</button>
+          <button class="btn btn-primary" onclick="poblarOrdenesParaFactura();poblarSelectClientes();openModal('modal-nueva-factura')">+ Emitir factura</button>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px" id="fact-kpis"></div>
