@@ -2331,7 +2331,20 @@ async function selOrdenParaFactura(ordenId) {
   const opt = document.querySelector(`#fact-orden option[value="${ordenId}"]`);
   if (!opt) return;
   document.getElementById('fact-cliente').value = opt.dataset.cliente;
-
+// Forzar selección del cliente en el selector
+  const clienteSel = document.getElementById('fact-cliente');
+  if (clienteSel && opt.dataset.cliente) {
+    clienteSel.value = opt.dataset.cliente;
+    if (!clienteSel.value) {
+      // Si no está en el selector, agregarlo
+      const clienteNombre = opt.text.split('·')[2]?.trim() || 'Cliente';
+      const optCli = document.createElement('option');
+      optCli.value = opt.dataset.cliente;
+      optCli.text = clienteNombre;
+      clienteSel.appendChild(optCli);
+      clienteSel.value = opt.dataset.cliente;
+    }
+  }
   // Cargar ítems reales de la orden separados por tipo
   const orden = await api('GET', `/api/ordenes/${ordenId}`);
   if (!orden) return;
