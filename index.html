@@ -1565,6 +1565,12 @@ function recalcEditTotal() {
     ${descAmt>0?`<span style="color:var(--ok);margin-left:10px">Descuento: -$${descAmt.toFixed(2)}</span>`:''}
     <span style="color:var(--t3);margin-left:10px">IVA 15%: </span><strong>$${iva.toFixed(2)}</strong>
     <span style="color:var(--verde);font-weight:700;font-size:14px;margin-left:10px">Total: $${total.toFixed(2)}</span>`:'';
+// Guardar descuento en ordenActual para prefactura
+  if (ordenActual) {
+    ordenActual._descTipo = tipoDesc;
+    ordenActual._descValor = valDesc;
+    ordenActual._descAmt = descAmt;
+  }
 }
 
 async function cambiarEstadoOrden(id, nuevoEstado) {
@@ -3052,12 +3058,7 @@ function seleccionarInsumo(id, nombre, stock, unidad) {
   <div class="totales">
     <div style="font-size:13px;color:#666">Subtotal bruto: <strong>$${subtotal.toFixed(2)}</strong></div>
     ${(() => {
-      const tipoDesc = document.getElementById('edit-desc-tipo')?.value || 'ninguno';
-      const valDesc = parseFloat(document.getElementById('edit-desc-valor')?.value)||0;
-      let descAmt = 0;
-      if (tipoDesc==='porcentaje') descAmt = subtotal*(valDesc/100);
-      else if (tipoDesc==='valor') descAmt = valDesc;
-      descAmt = Math.min(descAmt, subtotal);
+      const descAmt = parseFloat(ordenActual?._descAmt||0);
       const base = subtotal - descAmt;
       const ivaFinal = base * 0.15;
       const totalFinal = base + ivaFinal;
