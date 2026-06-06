@@ -1763,7 +1763,7 @@ async function guardarEdicionOrden(id) {
   if (r?.id||r?.numero) {
     closeModal('modal-detalle-orden');
     loadOrdenes();
-    alert(`✓ Orden actualizada${repuestos.length ? ` · ${repuestos.length} repuesto(s) descontados del inventario` : ''}`);
+    alert(`✓ Orden actualizada correctamente`);
   } else {
     alert(r?.error||'Error al guardar los cambios');
   }
