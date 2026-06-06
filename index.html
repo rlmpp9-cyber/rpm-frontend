@@ -3041,7 +3041,9 @@ function seleccionarInsumo(id, nombre, stock, unidad) {
     <div class="info-item"><div class="info-label">Cliente</div><div class="info-value">${r.cliente_nombre}</div></div>
     <div class="info-item"><div class="info-label">Vehículo</div><div class="info-value">${r.marca} ${r.modelo} ${r.anio}</div></div>
     <div class="info-item"><div class="info-label">Placa</div><div class="info-value">${r.placa}</div></div>
-    <div class="info-item"><div class="info-label">Servicio</div><div class="info-value" style="text-transform:capitalize">${r.tipo_servicio||'General'}</div></div>
+    <div class="info-item"><div class="info-label">Color</div><div class="info-value">${r.color||'—'} <span style="font-size:11px;color:#888">(${r.tipo_color||'—'})</span></div></div>
+    <div class="info-item"><div class="info-label">Kilometraje de ingreso</div><div class="info-value">${r.kilometraje_ingreso ? parseInt(r.kilometraje_ingreso).toLocaleString()+' km' : '—'}</div></div>
+    <div class="info-item"><div class="info-label">Tipo de servicio</div><div class="info-value" style="text-transform:capitalize">${r.tipo_servicio||'General'}</div></div>
     <div class="info-item" style="grid-column:span 2"><div class="info-label">Descripción del trabajo</div><div class="info-value">${r.descripcion||'—'}</div></div>
   </div>
 
