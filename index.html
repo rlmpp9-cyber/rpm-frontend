@@ -3356,7 +3356,7 @@ async function eliminarFacturaCompra(id, origen) {
   else if (origen === 'preoperativo') endpoint = `/api/contabilidad/preoperativos/${id}`;
   else { alert('No se puede eliminar este tipo de registro desde aquí.'); return; }
   const r = await api('DELETE', endpoint);
-  if (r?.ok || r?.id || r?.rowCount !== undefined || r !== null) {
+  if (r !== null && r !== undefined && !r?.error) {
     filtrarFacturasCompra();
   } else {
     alert(r?.error || 'Error al eliminar');
