@@ -902,10 +902,22 @@ textarea.form-input{resize:vertical}
   </div>
   <!-- Para activo fijo -->
   <div id="sri-gasto-activo-sec" style="display:none">
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">Vida útil (años)</label><input class="form-input" type="number" id="sri-gasto-vida" value="5" min="1"></div>
-      <div class="form-group"><label class="form-label">Valor residual $</label><input class="form-input" type="number" id="sri-gasto-residual" value="0" min="0" step="0.01"></div>
+    <div style="font-size:12px;color:var(--t3);margin-bottom:8px">Configura cada ítem como activo fijo individual. Puedes editar descripción, valor, vida útil y valor residual.</div>
+    <div id="sri-activos-tabla" style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="background:var(--bg2)">
+            <th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)">Descripción</th>
+            <th style="padding:6px 8px;text-align:right;border-bottom:1px solid var(--border)">Valor $</th>
+            <th style="padding:6px 8px;text-align:center;border-bottom:1px solid var(--border)">Vida útil (años)</th>
+            <th style="padding:6px 8px;text-align:right;border-bottom:1px solid var(--border)">V. residual $</th>
+            <th style="padding:6px 8px;text-align:center;border-bottom:1px solid var(--border)">Incluir</th>
+          </tr>
+        </thead>
+        <tbody id="sri-activos-tbody"></tbody>
+      </table>
     </div>
+    <button type="button" class="btn btn-sm" style="margin-top:8px;background:var(--bg2);color:var(--t2);border:1px solid var(--border)" onclick="sriAddActivoRow()">+ Agregar ítem manual</button>
   </div>
 </div>
       <div id="sri-productos-section">
@@ -2538,6 +2550,11 @@ async function procesarPDFFactura(input) {
     if (factura.razon_social_emisor) document.getElementById('sri-proveedor').value = factura.razon_social_emisor;
     if (factura.ruc_emisor) document.getElementById('sri-ruc-prov').value = factura.ruc_emisor;
     if (factura.total) document.getElementById('sri-total').value = factura.total;
+    // Guardar ítems para uso en activos fijos
+    window.sriItemsExtraidos = (factura.items||[]).map(it => ({
+      descripcion: it.descripcion,
+      precio_total: parseFloat(it.precio_unitario||0) * parseFloat(it.cantidad||1) - parseFloat(it.descuento||0)
+    }));
     if (factura.items?.length) {
       const itemsHtml = factura.items.map(item => `
         <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
@@ -2637,9 +2654,11 @@ function setTipoFacturaSRI(tipo) {
   document.getElementById('sri-servicio-section').style.display = tipo === 'servicio' ? 'block' : 'none';
   document.getElementById('sri-gasto-section').style.display = tipo === 'gasto' ? 'block' : 'none';
   if (tipo === 'servicio') poblarOrdenesServicioSRI();
-  if (tipo === 'gasto') {
+ if (tipo === 'gasto') {
     document.getElementById('sri-gasto-tipo').onchange = function() {
-      document.getElementById('sri-gasto-activo-sec').style.display = this.value === 'activo_fijo' ? 'block' : 'none';
+      const esActivo = this.value === 'activo_fijo';
+      document.getElementById('sri-gasto-activo-sec').style.display = esActivo ? 'block' : 'none';
+      if (esActivo) sriPoblarActivosDesdeItems();
     };
   }
 }
@@ -2943,16 +2962,40 @@ async function guardarFacturaSRI() {
       else alert(r?.error||'Error al registrar');
 
     } else if (tipoGasto === 'activo_fijo') {
-      const vidaUtil = parseInt(document.getElementById('sri-gasto-vida').value)||5;
-      const valorResidual = parseFloat(document.getElementById('sri-gasto-residual').value)||0;
-      const r = await api('POST', '/api/activos', {
-        nombre: descGasto, categoria: 'equipo',
-        fecha_adquisicion: fecha, valor_adquisicion: total,
-        vida_util_anios: vidaUtil, valor_residual: valorResidual,
-        notas: `Factura ${numFact} - ${proveedor}`
-      });
-      if (r?.id) { closeModal('modal-factura-sri-compra'); resetModalSRI(); alert(`✓ Registrado como activo fijo.`); }
-      else alert(r?.error||'Error al registrar');
+      // Registrar cada ítem de la tabla como activo fijo individual
+      const tbody = document.getElementById('sri-activos-tbody');
+      const filas = tbody ? tbody.rows.length : 0;
+      if (filas === 0) { alert('Agrega al menos un ítem'); return; }
+      let errores = 0, guardados = 0;
+      for (let i = 0; i < filas; i++) {
+        const inc = document.getElementById(`sri-act-inc-${i}`);
+        if (!inc?.checked) continue;
+        const desc = document.getElementById(`sri-act-desc-${i}`)?.value?.trim();
+        const val = parseFloat(document.getElementById(`sri-act-val-${i}`)?.value||0);
+        const vida = parseInt(document.getElementById(`sri-act-vida-${i}`)?.value||5);
+        const res = parseFloat(document.getElementById(`sri-act-res-${i}`)?.value||0);
+        if (!desc || val <= 0) continue;
+        const r = await api('POST', '/api/activos', {
+          nombre: desc, categoria: 'equipo',
+          fecha_adquisicion: fecha, valor_adquisicion: val,
+          vida_util_anios: vida, valor_residual: res,
+          proveedor: proveedor||null, numero_factura: numFact||null,
+          notas: `Factura ${numFact} - ${proveedor}`
+        });
+        if (r?.id) guardados++;
+        else errores++;
+      }
+      if (errores === 0 && guardados > 0) {
+        closeModal('modal-factura-sri-compra');
+        resetModalSRI();
+        alert(`✓ ${guardados} activo(s) fijo(s) registrado(s) correctamente.`);
+      } else if (guardados === 0) {
+        alert('Error al registrar los activos. Verifica los datos.');
+      } else {
+        alert(`✓ ${guardados} activo(s) registrado(s). ${errores} con error.`);
+        closeModal('modal-factura-sri-compra');
+        resetModalSRI();
+      }
 
     } else {
       const catMap = { gasto_operativo:'materiales', gasto_servicios:'servicios', gasto_arriendo:'arriendo', gasto_otros:'otros' };
@@ -3155,6 +3198,47 @@ function seleccionarInsumo(id, nombre, stock, unidad) {
   w.document.write(html);
   w.document.close();
   w.onload = () => w.print();
+}
+  function sriPoblarActivosDesdeItems() {
+  const tbody = document.getElementById('sri-activos-tbody');
+  if (!tbody) return;
+  // Tomar ítems ya extraídos de la factura SRI
+  const items = window.sriItemsExtraidos || [];
+  if (items.length === 0) {
+    // Si no hay ítems extraídos, crear una fila vacía
+    tbody.innerHTML = sriActivoRowHTML('', '', 5, 0, 0);
+    return;
+  }
+  tbody.innerHTML = items.map((it, i) =>
+    sriActivoRowHTML(it.descripcion||'', it.precio_total||it.subtotal||0, 5, 0, i)
+  ).join('');
+}
+
+function sriActivoRowHTML(desc, valor, vida, residual, idx) {
+  return `<tr id="sri-activo-row-${idx}">
+    <td style="padding:4px 6px;border-bottom:1px solid var(--border)">
+      <input class="form-input" style="font-size:11px;width:100%" value="${desc}" id="sri-act-desc-${idx}">
+    </td>
+    <td style="padding:4px 6px;border-bottom:1px solid var(--border)">
+      <input class="form-input" style="font-size:11px;width:80px;text-align:right" type="number" step="0.01" value="${parseFloat(valor).toFixed(2)}" id="sri-act-val-${idx}">
+    </td>
+    <td style="padding:4px 6px;border-bottom:1px solid var(--border);text-align:center">
+      <input class="form-input" style="font-size:11px;width:60px;text-align:center" type="number" min="1" value="${vida}" id="sri-act-vida-${idx}">
+    </td>
+    <td style="padding:4px 6px;border-bottom:1px solid var(--border)">
+      <input class="form-input" style="font-size:11px;width:70px;text-align:right" type="number" step="0.01" value="${residual}" id="sri-act-res-${idx}">
+    </td>
+    <td style="padding:4px 6px;border-bottom:1px solid var(--border);text-align:center">
+      <input type="checkbox" checked id="sri-act-inc-${idx}">
+    </td>
+  </tr>`;
+}
+
+function sriAddActivoRow() {
+  const tbody = document.getElementById('sri-activos-tbody');
+  if (!tbody) return;
+  const idx = tbody.rows.length;
+  tbody.insertAdjacentHTML('beforeend', sriActivoRowHTML('', 0, 5, 0, idx));
 }
     // ═══════════ FACTURAS COMPRA ═══════════
 let facturasCompraData = [];
